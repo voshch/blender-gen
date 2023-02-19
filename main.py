@@ -18,6 +18,7 @@ import colorsys
 import shutil
 import glob
 from mathutils import Vector, Matrix
+import itertools
 
 sys.path.append(os.getcwd())
 import util
@@ -591,6 +592,10 @@ def scene_cfg(camera, i):
                 "height": cfg.resolution_y,
                 "width": cfg.resolution_x,
             }
+            
+            # Flatten keypoints, to make them compatible with the COCO format (DETECTRON2)
+            flat_kps = itertools.chain.from_iterable(kps)
+            
             annotation = {
                 "id": i,
                 "image_id": i,
@@ -602,7 +607,7 @@ def scene_cfg(camera, i):
                 "segmentation": [],
                 "iscrowd": 0,
                 "area": x_range * cfg.resolution_x * y_range * cfg.resolution_y,
-                "keypoints": kps,
+                "keypoints": flat_kps,
                 "num_keypoints": len(kps)
             }
 
