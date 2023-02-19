@@ -594,7 +594,7 @@ def scene_cfg(camera, i):
             }
             
             # Flatten keypoints, to make them compatible with the COCO format (DETECTRON2)
-            flat_kps = itertools.chain.from_iterable(kps)
+            flat_kps = list(itertools.chain.from_iterable(kps))
             
             annotation = {
                 "id": i,
