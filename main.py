@@ -588,7 +588,7 @@ def scene_cfg(camera, i):
             # save COCO label
             image = {
                 "id": i,
-                "file_name": "object/images/{:06}".format(i) + '.jpg',
+                "file_name": "images/object/images/{:06}".format(i) + '.jpg',
                 "height": cfg.resolution_y,
                 "width": cfg.resolution_x,
             }
