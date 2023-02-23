@@ -108,7 +108,7 @@ class cfg:
         self.samples = 256  # render engine samples
 
         #  OUTPUT
-        self.numberOfRenders = 2  # how many rendered examples
+        self.numberOfRenders = 2000  # how many rendered examples
 
         # temporary variables (dont change anything here)
         self.metallic = []
