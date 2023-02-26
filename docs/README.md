@@ -9,15 +9,8 @@ If you use this code, please cite our work:
 ![example](example.png)
 
 ## Installation
-Download and unpack Blender in a folder /path/to/blender/blender-2.xx.x-linux64/ from [blender.org](https://www.blender.org/download/)
-To bind the 'blender' command to the blender application execute the following command in the terminal:
-```
-sudo ln -s /full/path/to/blender/blender-2.xx.x-linux64/blender /usr/local/bin/blender
-```
 
-### Getting Started
-
-#### Building Docker
+### Building Docker
 
 ```
 git clone https://github.com/CV-Bench/blender-gen.git
@@ -25,7 +18,7 @@ cd blender-gen
 docker build -t blender-gen .
 ```
 
-#### File Structure
+### File Structure
 
 Set up the following folder structure (you can also use the default structure from the repo):
 
@@ -52,13 +45,13 @@ data/
             texture4.jpg
 ```
 
-#### Testing Setup
+### Testing Setup
 
 Run
 
 ```
 mkdir -p ./data/output
-docker run --gpus all --volume $(pwd)/data/input:/data/input $(pwd)/data/outpuit:/data/output
+docker run --gpus all --volume $(pwd)/data/input:/data/input --volume $(pwd)/data/output:/data/output
 ```
 
 to test your setup.
@@ -68,7 +61,7 @@ to test your setup.
 
 ### Running Docker
 ```
-docker run --gpus all --volume /path/to/input/folder/:/data/input /path/to/output/folder/:/data/output [--target target] [--endpoint url] [--taskID id] [--mode mode] [--coco-image-root path] 
+docker run --gpus all --volume /path/to/input/folder/:/data/input --volume /path/to/output/folder/:/data/output [--target target] [--endpoint url] [--taskID id] [--mode mode] [--coco-image-root path] 
 ```
 
 #### Arguments
