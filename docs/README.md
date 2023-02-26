@@ -68,18 +68,27 @@ to test your setup.
 
 ### Running Docker
 ```
-docker run --gpus all --volume /path/to/input/folder/:/data/input /path/to/output/folder/:/data/output [--target target] [--endpoint url] [--mode mode] [--coco-image-root path] 
+docker run --gpus all --volume /path/to/input/folder/:/data/input /path/to/output/folder/:/data/output [--target target] [--endpoint url] [--taskID id] [--mode mode] [--coco-image-root path] 
 ```
 
 #### Arguments
 argument | type | default | description
 --------- | ----------- | ----------- | -----------
 `--target` | `all/configure/render/merge` | `all` | Run isolated pipeline steps with this command. Running `render` & `merge` requires persistent `/data/intermediate` directory.
-`--endpoint` | url | | `merge` step will `POST` current progress as `{progress:number, total:number}` object to specified endpoint. example: `http://localhost:8001`
+`--endpoint` | url | | HTTP endpoint for sending progress, finish, and error statuses 
+`--taskID` | string | | unique ID to identify this container from inside
 `--mode` | `train/val` | `train` | setting to `val` overwrites `config.output.just_merge` parameter with `0`
 `--coco-image-root` | path | "/data/output/dataset/" | Set `path` as prefix for path entries in the `annotation_coco.json` file.
 
+##### endpoint
 
+API overview for sending requests to `endpoint`:
+
+event | endpoint | schema #
+--- | --- | ---
+merge progress | /output | `{id:string, progress:int, total:int}`
+all done | /done | `{id:string}`
+error | /error | `{id:string}`
 
 ## config.json
 This python file contains a simple configuration class to configure the Blender generation script. The following parameters can be adapted to your specific application.

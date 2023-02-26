@@ -3,15 +3,17 @@ import datetime
 import json
 import os
 
+
 def bench():
     ts = datetime.datetime.now()
-    return lambda x: print(f"bench:: {x}: {datetime.datetime.now()-ts}")    
+    return lambda x: print(f"bench:: {x}: {datetime.datetime.now()-ts}")
+
 
 def orderCorners(objBB):
     """change bounding box corner order."""
     # change bounding box order according to
     # https://github.com/Microsoft/singleshotpose/blob/master/label_file_creation.md
-    out = [objBB[i][:] for i in [0,1,3,2,4,5,7,6]]
+    out = [objBB[i][:] for i in [0, 1, 3, 2, 4, 5, 7, 6]]
     corners = [v[:] for v in objBB]  # list of tuples (x,y,z)
     out.append(corners[0])  # -1 -1 -1
     out.append(corners[1])  # -1 -1 1
@@ -38,20 +40,21 @@ def kelvin_to_rgb(K):
     rgb = table[K]
     return rgb
 
+
 def get_random_temperature_color():  # 4K-9K test
-        color_list = [(1.0000, 0.6636, 0.3583),  # 4000K
-             (1.0000, 0.7992, 0.6045),  # 5000K
-             (1.0000, 0.9019, 0.8473),  # 6000K
-             (0.9337, 0.9150, 1.0000),  # 7000K
-             (0.7874, 0.8187, 1.0000),  # 8000K
-             (0.6693, 0.7541, 1.0000),  # 9000K
-             (1.0,1.0,1.0) # white
-             ]
-        idx = random.randint(0, len(color_list)-1)
-        return color_list[idx]
+    color_list = [(1.0000, 0.6636, 0.3583),  # 4000K
+                  (1.0000, 0.7992, 0.6045),  # 5000K
+                  (1.0000, 0.9019, 0.8473),  # 6000K
+                  (0.9337, 0.9150, 1.0000),  # 7000K
+                  (0.7874, 0.8187, 1.0000),  # 8000K
+                  (0.6693, 0.7541, 1.0000),  # 9000K
+                  (1.0, 1.0, 1.0)  # white
+                  ]
+    idx = random.randint(0, len(color_list)-1)
+    return color_list[idx]
 
 
-#def get_random_temperature_color():
+# def get_random_temperature_color():
 #    color_list = [(1.0000, 0.2434, 0.0000),  # 1900K
 #                  (1.0000, 0.3786, 0.0790),  # 2600K
 #                  (1.0000, 0.4668, 0.1229),  # 2900K

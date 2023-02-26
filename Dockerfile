@@ -4,11 +4,13 @@ RUN apt-get update && apt-get install -y git python3.10
 
 WORKDIR /workspace/blender_gen
 
+
+COPY requirements.txt .
+RUN pip3.10 install -r requirements.txt
+
 COPY src ./src
 COPY main.py .
-COPY requirements.txt .
 RUN mkdir -p /data
-RUN pip3.10 install -r requirements.txt
 
 RUN echo built
 

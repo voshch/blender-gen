@@ -5,3 +5,4 @@ data/intermediate
 data/output
 *.pyc
 /log.txt
+.vscode

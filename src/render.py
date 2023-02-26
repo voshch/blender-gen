@@ -29,6 +29,7 @@ with open("/data/intermediate/config/render.json") as f:
     config["metallic"] = []
     config["roughness"] = []
 
+
 class Target:
     def __init__(self, name, config=None):
 
@@ -60,27 +61,30 @@ class Target:
         self.model = name
         self.config = config
 
-    def configs(self): #lazy iterate over all combinations
+    def configs(self):  # lazy iterate over all combinations
         fields = ["texture", "inc", "azi", "metallic", "roughness"]
         indices = [0 for _ in fields]
         limits = [len(self.config[field]) for field in fields]
 
         while True:
             yield [self.config[fields[i]][indices[i]] for i in range(0, len(fields))]
-            for i in range(len(fields)-1,-1,-1):
+            for i in range(len(fields)-1, -1, -1):
                 indices[i] += 1
                 if indices[i] == limits[i]:
-                    if i==0:
+                    if i == 0:
                         return None
                     indices[i] = 0
                 else:
-                    break;
-            
-#maybe more useful in the future?
+                    break
+
+# maybe more useful in the future?
+
+
 class Object(Target):
     model_path = "/data/input/models/"
     texture_path = "/data/input/textures/"
     type = "object"
+
 
 class Distractor(Target):
     model_path = "/data/input/models/"
@@ -90,14 +94,6 @@ class Distractor(Target):
 # def _print(*args, **kwargs):
 #     ...
 # print = _print
-
-
-
-
-
-
-
-
 
 
 def importPLYobject(filepath, conf_obj, scale):
@@ -139,18 +135,18 @@ def importOBJobject(filepath, conf_obj, distractor=False):
         return bpy.data.objects[conf_obj.model]
 
     bpy.ops.import_scene.obj(filepath=filepath, axis_forward='Y', axis_up='Z')
-    #print("importing model with axis_forward=Y, axis_up=Z")
+    # print("importing model with axis_forward=Y, axis_up=Z")
 
-    #ctx = bpy.context.copy()
-    #ctx['active_object'] = obj_objects[0]
-    #ctx['selected_objects'] = obj_objects
+    # ctx = bpy.context.copy()
+    # ctx['active_object'] = obj_objects[0]
+    # ctx['selected_objects'] = obj_objects
     # bpy.ops.object.join(ctx)  # join multiple elements into one element
     # bpy.ops.object.join(obj_objects)  # join multiple elements into one eleme
 
     # get BSDF material node
     obj = bpy.context.selected_objects[0]
     obj.name = conf_obj.model
-    
+
     mat = obj.active_material
     mat_links = mat.node_tree.links
     nodes = mat.node_tree.nodes
@@ -215,8 +211,8 @@ def setup_camera():
     # CAMERA CONFIG
     camera.data.sensor_height = config["camera"]["cam_sensor_height"]
     camera.data.sensor_width = config["camera"]["cam_sensor_width"]
-    #width = cfg.resolution_x
-    #height = cfg.resolution_y
+    # width = cfg.resolution_x
+    # height = cfg.resolution_y
     # camera.data.lens_unit = 'FOV'#'MILLIMETERS'
     if config["camera"]["cam_lens_unit"] == 'FOV':
         camera.data.lens_unit = 'FOV'
@@ -299,8 +295,9 @@ def setup_light(scene, inc, azi):
         azimuth=azi)
     light_data = bpy.data.lights.new(name="my-light-data", type='POINT')
     light_data.color = (1., 1., 1.)
-    light_data.energy = config["exposure"] 
-    light_object = bpy.data.objects.new(name="my-light", object_data=light_data)
+    light_data.energy = config["exposure"]
+    light_object = bpy.data.objects.new(
+        name="my-light", object_data=light_data)
     bpy.context.collection.objects.link(light_object)
     light_object.location = (x, y, z)
 
@@ -308,7 +305,7 @@ def setup_light(scene, inc, azi):
 # def get_bg_image(bg_path=cfg.bg_paths):
 #     """get list of all background images in folder 'bg_path' then choose random image."""
 #     idx = random.randint(0, len(bg_path) - 1)
-# 
+#
 #     img_list = os.listdir(bg_path[idx])
 #     randomImgNumber = random.randint(0, len(img_list) - 1)
 #     bg_img = img_list[randomImgNumber]
@@ -342,9 +339,11 @@ def scene_cfg(camera, conf_obj, texture, inc, azi, metallic, roughness):
     obj = None
 
     if conf_obj.model[-4:].lower() == ".obj":
-        obj = importOBJobject(os.path.join(conf_obj.model_path, conf_obj.model), conf_obj)
+        obj = importOBJobject(os.path.join(
+            conf_obj.model_path, conf_obj.model), conf_obj)
     elif conf_obj.model[-4:].lower() == ".ply":
-        obj = importPLYobject(os.path.join(conf_obj.model_path, conf_obj.model), conf_obj, scale=config["model_scale"])
+        obj = importPLYobject(os.path.join(
+            conf_obj.model_path, conf_obj.model), conf_obj, scale=config["model_scale"])
 
     obj.hide_render = False
 
@@ -353,9 +352,9 @@ def scene_cfg(camera, conf_obj, texture, inc, azi, metallic, roughness):
 
     texture_node = nodes.get("Image Texture")
     if texture_node:
-        bpy.data.images.load(os.path.join(conf_obj.texture_path, texture), check_existing=True)
+        bpy.data.images.load(os.path.join(
+            conf_obj.texture_path, texture), check_existing=True)
         texture_node.image = bpy.data.images[texture]
-
 
     obj.rotation_euler = (0, 0, 0)
 
@@ -377,18 +376,19 @@ def scene_cfg(camera, conf_obj, texture, inc, azi, metallic, roughness):
     rot_angle1 = 0
     rot_angle2 = 0
     rot_angle3 = 0
-    empty_obj.rotation_euler = (rot_angle1, rot_angle2, rot_angle3)  # XYZ euler rotation on the empty object
+    # XYZ euler rotation on the empty object
+    empty_obj.rotation_euler = (rot_angle1, rot_angle2, rot_angle3)
 
     # update blender object world_matrices!
 
     bpy.context.view_layer.update()
 
     # Some point in 3D you want to project
-    #v = obj.location
+    # v = obj.location
     # Projecting v with the camera
-    #K, RT = get_camera_KRT(camera)
-    #p = K @ (RT @ v)
-    #p /= p[2]
+    # K, RT = get_camera_KRT(camera)
+    # p = K @ (RT @ v)
+    # p /= p[2]
     # p[1] = 512 - p[1]  # openCV frame
 
     center = project_by_object_utils(camera, obj.location)  # object 2D center
@@ -397,7 +397,8 @@ def scene_cfg(camera, conf_obj, texture, inc, azi, metallic, roughness):
     labels = [class_]
     labels.append(center[0])  # center x coordinate in image space
     labels.append(center[1])  # center y coordinate in image space
-    corners = util.orderCorners(obj.bound_box)  # change order from blender to SSD paper
+    # change order from blender to SSD paper
+    corners = util.orderCorners(obj.bound_box)
     if (config["use_fps_keypoints"]):
         corners = np.loadtxt("fps.txt")
 
@@ -412,18 +413,20 @@ def scene_cfg(camera, conf_obj, texture, inc, azi, metallic, roughness):
         else:
             v = 2  # v=2: labeled and visible
         # 8 bounding box keypoints
-        kps += [p[0] * config["resolution_x"], p[1] * config["resolution_y"], v]
+        kps += [p[0] * config["resolution_x"],
+                p[1] * config["resolution_y"], v]
 
     # P=[RT] ground truth pose of the object in camera coordinates???
     P = camera.matrix_world.inverted() @ obj.matrix_world
 
     # compute bounding box either with 3D bbox or by going through vertices
-    if config["compute_bbox"] == 'tight':  # loop through all vertices and transform to image coordinates
+    # loop through all vertices and transform to image coordinates
+    if config["compute_bbox"] == 'tight':
         min_x, max_x, min_y, max_y = 1, 0, 1, 0
         vertices = obj.data.vertices
         for v in vertices:
             vec = project_by_object_utils(camera,
-                                            obj.matrix_world @ Vector(v.co))
+                                          obj.matrix_world @ Vector(v.co))
             x = vec[0]
             y = vec[1]
             if x > max_x:
@@ -464,10 +467,11 @@ def scene_cfg(camera, conf_obj, texture, inc, azi, metallic, roughness):
     labels[2] = (max_y + min_y) / 2
 
     #  keypoints (kps) for 6D Pose Estimation
-    #kps = [cfg.resolution_x * (max_x + min_x) / 2, cfg.resolution_y * (max_y + min_y) / 2, 2] +kps
+    # kps = [cfg.resolution_x * (max_x + min_x) / 2, cfg.resolution_y * (max_y + min_y) / 2, 2] +kps
 
     if (config["use_fps_keypoints"] == False):
-        kps = [config["resolution_x"] * center[0], config["resolution_y"] * center[1], 2] + kps  # center is the 1st keypoint
+        kps = [config["resolution_x"] * center[0], config["resolution_y"]
+               * center[1], 2] + kps  # center is the 1st keypoint
 
         # save COCO label
 
@@ -498,9 +502,10 @@ def setup():
     bpy.context.scene.render.resolution_percentage = 100
     bpy.context.scene.render.film_transparent = True
     bpy.context.scene.render.image_settings.color_mode = 'RGBA'
-    bpy.context.scene.render.image_settings.color_depth = '8'  # Bit depth per channel [8,16,32]
+    # Bit depth per channel [8,16,32]
+    bpy.context.scene.render.image_settings.color_depth = '8'
     bpy.context.scene.render.image_settings.file_format = 'PNG'  # 'PNG'
-    #bpy.context.scene.render.image_settings.compression = 0  # JPEG compression
+    # bpy.context.scene.render.image_settings.compression = 0  # JPEG compression
     bpy.context.scene.render.image_settings.quality = 100
 
     # constrain camera to look at blenders (0,0,0) scene origin (empty_object)
@@ -519,7 +524,7 @@ def setup():
         tree.nodes.remove(n)
     rl = tree.nodes.new(type="CompositorNodeRLayers")
 
-    #setup_bg_image_nodes(rl)
+    # setup_bg_image_nodes(rl)
 
     """ # save depth output file? not tested!
     if (cfg.output_depth):
@@ -539,7 +544,7 @@ def setup():
     else:
         depth_file_output = None """
 
-    #bpy.data.worlds["World"].light_settings.use_ambient_occlusion = True
+    # bpy.data.worlds["World"].light_settings.use_ambient_occlusion = True
 
     #  delete Cube from default blender scene
     bpy.data.objects['Cube'].select_set(True)
@@ -562,17 +567,18 @@ def setup():
         obj = importOBJobject(filepath=cfg.distractor_paths[i], distractor=True) """
 
     #  save Model real world Bounding Box for PnP algorithm
-    #np.savetxt("/intermediate/model_bounding_box.txt", util.orderCorners(obj.bound_box))
+    # np.savetxt("/intermediate/model_bounding_box.txt", util.orderCorners(obj.bound_box))
 
-    #add_shader_on_world()  # used for HDR background image
+    # add_shader_on_world()  # used for HDR background image
 
-    return camera, None #depth_file_output
+    return camera, None  # depth_file_output
 
 
 def render_cfg():
     """setup Blenders render engine (EEVEE or CYCLES) once"""
     # refresh the list of devices
-    devices = bpy.context.preferences.addons["cycles"].preferences.get_devices()
+    devices = bpy.context.preferences.addons["cycles"].preferences.get_devices(
+    )
     if devices:
         devices = devices[0]
         for d in devices:
@@ -586,13 +592,14 @@ def render_cfg():
         bpy.context.scene.cycles.use_adaptive_sampling = config["use_adaptive_sampling"]
         bpy.context.scene.cycles.adaptive_min_samples = 50
         bpy.context.scene.cycles.adaptive_threshold = 0.001
-        bpy.context.scene.cycles.denoiser = 'OPENIMAGEDENOISE'  # Intel OpenImage AI denoiser on CPU
+        # Intel OpenImage AI denoiser on CPU
+        bpy.context.scene.cycles.denoiser = 'OPENIMAGEDENOISE'
     else:
         bpy.context.scene.render.engine = 'BLENDER_EEVEE'
         bpy.context.scene.eevee.taa_render_samples = config["samples"]
     if (config["use_GPU"]):
-        #bpy.context.scene.render.tile_x = 64
-        #bpy.context.scene.render.tile_y = 64
+        # bpy.context.scene.render.tile_x = 64
+        # bpy.context.scene.render.tile_y = 64
         bpy.context.preferences.addons[
             'cycles'].preferences.compute_device_type = "CUDA"
         bpy.context.scene.cycles.device = 'GPU'
@@ -617,17 +624,18 @@ def render(camera, conf_obj, cat="unsorted", log=sys.stdout):
         log.flush()
 
         bpy.context.scene.render.filepath = f'/data/intermediate/render/renders/{cat}/{conf_obj.model}-{texture}-{inc}-{azi}-{metallic}-{roughness}.png'
-        annotation = scene_cfg(camera, conf_obj, texture, inc, azi, metallic, roughness)
+        annotation = scene_cfg(camera, conf_obj, texture,
+                               inc, azi, metallic, roughness)
         annotations.append(annotation)
 
         """ if (cfg.output_depth):
             depth_file_output.file_slots[
                 0].path = bpy.context.scene.render.filepath + '_depth' """
-            
+
         bpy.ops.render.render(write_still=True,
                               use_viewport=False)  # render current scene
 
-        #for block in bpy.data.images:  # delete loaded images (bg + hdri)
+        # for block in bpy.data.images:  # delete loaded images (bg + hdri)
         #    bpy.data.images.remove(block)
 
         for block in bpy.data.lights:  # delete lights
@@ -639,11 +647,11 @@ def render(camera, conf_obj, cat="unsorted", log=sys.stdout):
 
     return annotations
 
+
 @click.command(context_settings=dict(
     ignore_unknown_options=True,
     allow_extra_args=True,
 ))
-
 def main():
     """
     call this script with 'blender --background --python main.py'
@@ -651,17 +659,17 @@ def main():
     edit the config.py file to change configuration parameters
 
     """
-    #random.seed(cfg.seed)
+    # random.seed(cfg.seed)
 
-    #load targets
+    # load targets
 
     os.makedirs("/data/intermediate/render/", exist_ok=True)
 
     conf = {}
     with open("/data/intermediate/config/targets.json") as f:
         conf["targets"] = json.load(f)
-    
-    #log = open("/log.txt", "w")
+
+    # log = open("/log.txt", "w")
     log = open(os.devnull, "w")
 
     parser = argparse.ArgumentParser()
@@ -692,20 +700,23 @@ def main():
         render(camera, obj, cat="distractor", log=log)  # render loop
         del obj
 
-    #copy static backgrounds
+    # copy static backgrounds
     os.makedirs("/data/intermediate/bg/", exist_ok=True)
-    shutil.copytree("/data/input/bg/static/", "/data/intermediate/bg/", dirs_exist_ok=True)
+    shutil.copytree("/data/input/bg/static/",
+                    "/data/intermediate/bg/", dirs_exist_ok=True)
 
-    #render dyn backgrounds
+    # render dyn backgrounds
     #
-    
+
     K, RT = get_camera_KRT(bpy.data.objects['Camera'])
-    Kdict = save_camera_matrix(K)  # save Camera Matrix to K.txt 
-    bpy.ops.wm.save_as_mainfile(filepath="/data/intermediate/render/scene.blend", check_existing=False)  # save current scene as .blend file
-    
+    Kdict = save_camera_matrix(K)  # save Camera Matrix to K.txt
+    # save current scene as .blend file
+    bpy.ops.wm.save_as_mainfile(
+        filepath="/data/intermediate/render/scene.blend", check_existing=False)
+
     with open("/data/intermediate/render/annotations.json", "w") as f:
         json.dump(all_annotations, f)
-    
+
     return True
 
 
