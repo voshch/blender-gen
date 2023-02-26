@@ -21,10 +21,10 @@
 
     "render":{
         "camera":{
-            "cam_lens_unit": "FOV",
-            "cam_lens": 74.5,
-            "cam_sensor_height": 3.84,
-            "cam_sensor_width": 5.11,
+            "lens_unit": "FOV",
+            "lens": 74.5,
+            "sensor_height": 3.84,
+            "sensor_width": 5.11,
             "clip_start": 0.1,
             "clip_end": 50
         },
