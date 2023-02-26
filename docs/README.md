@@ -51,7 +51,7 @@ Run
 
 ```
 mkdir -p ./data/output
-docker run --gpus all --volume $(pwd)/data/input:/data/input --volume $(pwd)/data/output:/data/output
+docker run --gpus all --volume $(pwd)/data/input:/data/input --volume $(pwd)/data/output:/data/output blender-gen
 ```
 
 to test your setup.
@@ -61,7 +61,7 @@ to test your setup.
 
 ### Running Docker
 ```
-docker run --gpus all --volume /path/to/input/folder/:/data/input --volume /path/to/output/folder/:/data/output [--target target] [--endpoint url] [--taskID id] [--mode mode] [--coco-image-root path] 
+docker run --gpus all --volume /path/to/input/folder/:/data/input --volume /path/to/output/folder/:/data/output blender-gen [--target target] [--endpoint url] [--taskID id] [--mode mode] [--coco-image-root path] 
 ```
 
 #### Arguments
