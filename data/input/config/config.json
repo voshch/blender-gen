@@ -1,11 +1,24 @@
 {
 
     "input":{
-        "object": "Suzanne.obj",
-        "texture_object": "brick_floor_003_diffuse_1k.jpg",
+        "object": [
+            {
+                "model": "Suzanne.obj",
+                "texture": "brick_floor_003_diffuse_1k.jpg",
+                "label": "Suzanne"
+            }
+        ],
 
-        "distractor":["Cube.obj"],
-        "texture_distractor":["bark_brown_02_diff_1k.jpg", "brick_floor_003_diffuse_1k.jpg"],
+        "distractor": [
+            {
+                "model": "Cube.obj",
+                "texture": "bark_brown_02_diff_1k.jpg"
+            },
+            {
+                "model": "Cube.obj",
+                "texture": "brick_floor_003_diffuse_1k.jpg"
+            }
+        ],
 
         "bg":["pexels-pixabay-221047.jpg"],
         "environment":[]
@@ -13,7 +26,7 @@
     },
 
     "output":{
-        "images": 10,
+        "images": 100,
         "just_merge": 0.95,
         "skew_angle:material": 4
     },

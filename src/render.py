@@ -31,16 +31,10 @@ with open("/data/intermediate/config/render.json") as f:
 
 
 class Target:
-    def __init__(self, name, config=None):
+    def __init__(self, config=None):
 
         if not config:
             config = {}
-
-        if "texture" not in config:
-            config["texture"] = []
-        config["texture"] = config["texture"] or [""]
-
-        print(config["texture"])
 
         if "inc" not in config:
             config["inc"] = []
@@ -58,11 +52,13 @@ class Target:
             config["roughness"] = []
         config["roughness"] = config["roughness"] or [1]
 
-        self.model = name
+        self.model = config["model"]
+        self.texture = config["texture"]
+
         self.config = config
 
     def configs(self):  # lazy iterate over all combinations
-        fields = ["texture", "inc", "azi", "metallic", "roughness"]
+        fields = ["inc", "azi", "metallic", "roughness"]
         indices = [0 for _ in fields]
         limits = [len(self.config[field]) for field in fields]
 
@@ -84,6 +80,12 @@ class Object(Target):
     model_path = "/data/input/models/"
     texture_path = "/data/input/textures/"
     type = "object"
+
+    def __init__(self, config=None):
+        super().__init__(config)
+
+        self.config["label"] = config["label"]
+
 
 
 class Distractor(Target):
@@ -475,7 +477,7 @@ def scene_cfg(camera, conf_obj, texture, inc, azi, metallic, roughness):
 
         # save COCO label
 
-    id = f'{conf_obj.model}-{texture}-{inc}-{azi}-{metallic}-{roughness}.png'
+    id = f'{conf_obj.model}-{inc}-{azi}-{metallic}-{roughness}.png'
 
     annotation = {
         "id": id,
@@ -618,14 +620,20 @@ def render(camera, conf_obj, cat="unsorted", log=sys.stdout):
     annotations = []
 
     #  render loop
-    for texture, inc, azi, metallic, roughness in conf_obj.configs():
+    for inc, azi, metallic, roughness in conf_obj.configs():
+
+        texture = conf_obj.config["texture"]
 
         log.write(f"\t{texture} - {inc} - {azi} - {metallic} - {roughness}\n")
         log.flush()
 
-        bpy.context.scene.render.filepath = f'/data/intermediate/render/renders/{cat}/{conf_obj.model}-{texture}-{inc}-{azi}-{metallic}-{roughness}.png'
+        bpy.context.scene.render.filepath = f'/data/intermediate/render/renders/{cat}/{conf_obj.model}-{inc}-{azi}-{metallic}-{roughness}.png'
         annotation = scene_cfg(camera, conf_obj, texture,
                                inc, azi, metallic, roughness)
+        
+        if cat == "object":
+            annotation["caption"] = conf_obj.config["label"]
+
         annotations.append(annotation)
 
         """ if (cfg.output_depth):
@@ -670,7 +678,7 @@ def main():
         conf["targets"] = json.load(f)
 
     # log = open("/log.txt", "w")
-    log = open(os.devnull, "w")
+    log = sys.stdout
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--python")
@@ -682,10 +690,10 @@ def main():
 
     all_annotations = {}
 
-    for model, obj_conf in conf["targets"]["object"].items():
-        log.write(f"Rendering object {model}\n")
+    for obj_conf in conf["targets"]["object"]:
+        log.write(f'Rendering object {obj_conf["label"]}\n')
         log.flush()
-        obj = Object(name=model, config=obj_conf)
+        obj = Object(obj_conf)
 
         annotations = render(camera, obj, cat="object", log=log)  # render loop
         for annotation in annotations:
@@ -693,10 +701,10 @@ def main():
 
         del obj
 
-    for model, dist_conf in conf["targets"]["distractor"].items():
-        log.write(f"Rendering distractor {model}\n")
+    for dist_conf in conf["targets"]["distractor"]:
+        log.write(f'Rendering distractor {obj_conf["model"]}\n')
         log.flush()
-        obj = Distractor(name=model, config=dist_conf)
+        obj = Distractor(dist_conf)
         render(camera, obj, cat="distractor", log=log)  # render loop
         del obj
 
