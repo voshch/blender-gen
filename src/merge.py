@@ -139,25 +139,24 @@ def main(endpoint, taskid, coco_image_root):
             "width": cfg["resolution_y"],
         })
 
-        box = annotations[conf["object"]["name"]]
+        annotation = annotations[conf["object"]["name"]]
 
-        box["bbox"] = [
-            trf[0, 0] * box["bbox"][0] + trf[0, 2],  # x1
-            trf[1, 1] * box["bbox"][1] + trf[1, 2],  # x1
-            trf[0, 0] * box["bbox"][2],  # x2
-            trf[1, 1] * box["bbox"][3]  # y2
+        annotation["bbox"] = [
+            trf[0, 0] * annotation["bbox"][0] + trf[0, 2],  # x1
+            trf[1, 1] * annotation["bbox"][1] + trf[1, 2],  # x1
+            trf[0, 0] * annotation["bbox"][2],  # x2
+            trf[1, 1] * annotation["bbox"][3]  # y2
         ]
 
         coco_label.append({
-            "id": id,
+            **annotation,
+            "id": id, #overwrite
             "image_id": id,
-            "bbox": box["bbox"],
             "category_id": 0,
             "segmentation": [],
             "iscrowd": 0,
-            "area": box["bbox"][2] * box["bbox"][3],
-            "keypoints": box["keypoints"],
-            "num_keypoints": len(box["keypoints"])
+            "area": annotation["bbox"][2] * annotation["bbox"][3],
+            "num_keypoints": len(annotation["keypoints"])
         })
 
         print(f"\r{i+1:0{digits}} / {total}", end="", flush=True)

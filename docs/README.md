@@ -88,10 +88,8 @@ This python file contains a simple configuration class to configure the Blender 
 
 Parameter | Description
 --------- | -----------
-`input.object` | path to object model
-`input.texture_object` | path to object texture
-`input.distractor` | list of paths to distractor models
-`input.texture_distractor` | list of paths to distractor textures
+`input.object` | list of `{model,texture,label}` objects
+`input.distractor` | list of `{model,texture}` objects
 `input.bg` | list of paths to static backgrounds
 `input.environment` | list of paths to 360° HDRI backgrounds
 `output.images` | number of generated images

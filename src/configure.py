@@ -42,8 +42,8 @@ def main(mode):
 
     to_produce = config["output"]["images"]
     to_produce *= (1-config["output"]["just_merge"])
+    to_produce /= len(config["input"]["object"]) or 1
     to_produce /= len(config["input"]["distractor"]) or 1
-    to_produce /= (len(config["input"]["texture_distractor"])) or 1
     to_produce /= (len(config["input"]["bg"]) +
                    len(config["input"]["environment"])) or 1
 
@@ -70,20 +70,22 @@ def main(mode):
             targets[target] = [config["random"][target]]
 
     conf_targets = dict(
-        object=dict(),
-        distractor=dict()
+        object=list(),
+        distractor=list(),
+        environment=config["input"]["environment"]
     )
 
-    conf_targets["object"][config["input"]["object"]] = dict(
-        texture=[config["input"]["texture_object"]],
-        **targets
-    )
+    for obj in config["input"]["object"]:
+        conf_targets["object"].append(dict(
+            **obj,
+            **targets
+        ))
 
     for distractor in config["input"]["distractor"]:
-        conf_targets["distractor"][distractor] = dict(
-            texture=config["input"]["texture_distractor"],
+        conf_targets["distractor"].append(dict(
+            **distractor,
             **targets
-        )
+        ))
 
     with open("/data/intermediate/config/targets.json", "w") as f:
         json.dump(conf_targets, f)
@@ -98,13 +100,15 @@ def main(mode):
     dof_pos_y = isinstance(config["random"]["y_pos"], list)
     dof_pos_z = isinstance(config["random"]["z_pos"], list)
 
+    no_objects = len(config["input"]["object"])
+
     for i in range(config["output"]["images"]):
         merge = dict(
             bg=dict(
                 name=random.choice(bg)
             ),
             object=dict(
-                name=f'{config["input"]["object"]}-{config["input"]["texture_object"]}-{random.choice(targets["inc"])}-{random.choice(targets["azi"])}-{random.choice(targets["metallic"])}-{random.choice(targets["roughness"])}.png',
+                name=f'{config["input"]["object"][i%no_objects]["model"]}-{random.choice(targets["inc"])}-{random.choice(targets["azi"])}-{random.choice(targets["metallic"])}-{random.choice(targets["roughness"])}.png',
                 translation=[
                     draw_samples(config["random"]["x_pos"], 1)[
                         0] if dof_pos_x else config["random"]["x_pos"],
@@ -119,7 +123,7 @@ def main(mode):
 
         for j in range(random.randint(*config["random"]["distractors"])):
             merge["distractor"].append(dict(
-                name=f'{random.choice(config["input"]["distractor"])}-{random.choice(config["input"]["texture_distractor"])}-{random.choice(targets["inc"])}-{random.choice(targets["azi"])}-{random.choice(targets["metallic"])}-{random.choice(targets["roughness"])}.png',
+                name=f'{random.choice(config["input"]["distractor"])["model"]}-{random.choice(targets["inc"])}-{random.choice(targets["azi"])}-{random.choice(targets["metallic"])}-{random.choice(targets["roughness"])}.png',
                 translation=[
                     draw_samples(config["random"]["x_pos"], 1)[
                         0] if dof_pos_x else config["random"]["x_pos"],
@@ -135,13 +139,13 @@ def main(mode):
     with open("/data/intermediate/config/merge.json", "w") as f:
         json.dump(conf_merge, f)
 
-    total = (1 + len(config["input"]["distractor"]) * len(config["input"]
-             ["texture_distractor"])) * numpy.prod([len(targets[k]) for k in targets])
+    total = (len(config["input"]["object"]) + len(config["input"]
+             ["distractor"])) * numpy.prod([len(targets[k]) for k in targets])
 
     print(f"Configured {total} renders for {len(conf_merge)} images")
     print("Breakdown:")
     print(
-        f'Objects:    {1 + len(config["input"]["distractor"]) * len(config["input"]["texture_distractor"])}')
+        f'Objects:    {(len(config["input"]["object"]) + len(config["input"]["distractor"]))}')
     print(f'inc:        {len(targets["inc"])}')
     print(f'azi:        {len(targets["azi"])}')
     print(f'metallic:   {len(targets["metallic"])}')
