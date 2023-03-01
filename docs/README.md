@@ -97,7 +97,6 @@ Parameter | Description
 `output.skew_angle:material` | proportion of angle (inc, azi) samples to material (metallic, roughness) samples
 `render.camera.lens_unit` | Choose either 'FOV' or 'MILLIMETERS' (https://docs.blender.org/api/current/bpy.types.Camera.html#bpy.types.Camera.lens_unit)
 `render.camera.lens` | Camera lens value in chosen unit.
-`render.camera.sensor_width` | Horizontal size of the image sensor area in millimeters (https://docs.blender.org/api/current/bpy.types.Camera.html)
 `render.camera.clip_end` | Camera far clipping distance (https://docs.blender.org/api/current/bpy.types.Camera.html)
 `render.camera.clip_start` | Camera near clipping distance (https://docs.blender.org/api/current/bpy.types.Camera.html)
 `render.resolution_x` | Pixel resolution of the output image (width)

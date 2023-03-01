@@ -211,8 +211,6 @@ def setup_camera():
     bpy.data.cameras['Camera'].clip_end = config["camera"]["clip_end"]
 
     # CAMERA CONFIG
-    camera.data.sensor_height = config["camera"]["sensor_height"]
-    camera.data.sensor_width = config["camera"]["sensor_width"]
     # width = cfg.resolution_x
     # height = cfg.resolution_y
     # camera.data.lens_unit = 'FOV'#'MILLIMETERS'
