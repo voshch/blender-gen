@@ -36,8 +36,6 @@
         "camera":{
             "lens_unit": "FOV",
             "lens": 74.5,
-            "sensor_height": 3.84,
-            "sensor_width": 5.11,
             "clip_start": 0.1,
             "clip_end": 50
         },
