@@ -2,7 +2,7 @@ import json
 import os
 import numpy
 import random
-from math import ceil as cl
+from math import ceil as cl, floor as fl
 import click
 
 
@@ -42,8 +42,7 @@ def main(mode):
 
     to_produce = config["output"]["images"]
     to_produce *= (1-config["output"]["just_merge"])
-    to_produce /= len(config["input"]["object"]) or 1
-    to_produce /= len(config["input"]["distractor"]) or 1
+    to_produce /= (len(config["input"]["object"]) or 1) + len(config["input"]["distractor"])
     to_produce /= (len(config["input"]["bg"]) +
                    len(config["input"]["environment"])) or 1
 
@@ -53,13 +52,13 @@ def main(mode):
         isinstance(config["random"]["roughness"], list)
 
     each = (to_produce / (config["output"]["skew_angle:material"]
-            ** dof_ang)) ** (1/(dof_ang + dof_mat))
+            ** dof_mat)) ** (1/(dof_ang + dof_mat))
 
     targets = dict(
-        inc=max(1, cl(config["output"]["skew_angle:material"]*each)),
-        azi=max(1, cl(config["output"]["skew_angle:material"]*each)),
-        metallic=max(1, cl(each)),
-        roughness=max(1, cl(each))
+        inc=max(1, cl(each)),
+        azi=max(1, cl(each)),
+        metallic=max(1, cl(each / config["output"]["skew_angle:material"])),
+        roughness=max(1, cl(each / config["output"]["skew_angle:material"]))
     )
 
     for target in targets:
