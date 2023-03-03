@@ -14,15 +14,20 @@ def draw_samples(range, samples):
     ignore_unknown_options=True,
     allow_extra_args=True,
 ))
-@click.option("--mode", default="train", help="train|val create training or validation dataset")
-def main(mode):
+@click.option("--mode_internal", default="train", help="train|val create training or validation dataset")
+def main(mode_internal):
 
     config = None
     with open("/data/input/config/config.json") as f:
         config = json.load(f)
 
-    if mode == "val":
+    if mode_internal == "train":
+        config["output"]["images"] = config["output"]["size_train"]
+
+    elif mode_internal == "val":
         config["output"]["just_merge"] = 0
+        config["output"]["images"] = config["output"]["size_val"]
+
     config["output"]["just_merge"] = min(
         max(config["output"]["just_merge"], 0), 1)
 

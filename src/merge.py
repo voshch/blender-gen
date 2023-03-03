@@ -98,8 +98,9 @@ def merge(bg, obj, distractor):
 ))
 @click.option("--endpoint", default=None, help="http endpoint for sending current progress")
 @click.option("--taskID", default="", help="task ID")
-@click.option("--coco-image-root", default="/data/output/dataset/", help="http endpoint for sending current progress")
-def main(endpoint, taskid, coco_image_root):
+@click.option("--coco-image-root", default="/data/output/", help="http endpoint for sending current progress")
+@click.option("--mode_internal")
+def main(endpoint, taskid, coco_image_root, mode_internal):
 
     merges = None
     with open("/data/intermediate/config/merge.json") as f:
@@ -113,7 +114,9 @@ def main(endpoint, taskid, coco_image_root):
     with open("/data/intermediate/render/camera_intrinsic.json") as f:
         camera_K = json.load(f)
 
-    os.makedirs("/data/output/dataset/", exist_ok=True)
+    basepath = os.path.join("/data/output/", mode_internal)
+
+    os.makedirs(os.path.join(basepath, "dataset"), exist_ok=True)
 
     coco_img = []
     coco_label = []
@@ -128,13 +131,12 @@ def main(endpoint, taskid, coco_image_root):
         merged, trf = merge(conf["bg"], conf["object"], conf["distractor"])
 
         id = f"{i:0{digits}}"
-        path = os.path.join(coco_image_root, f"{id}.png")
 
-        cv.imwrite(os.path.join("/data/output/dataset/", f"{id}.png"), merged)
+        cv.imwrite(os.path.join(basepath, f"dataset/{id}.png"), merged)
 
         coco_img.append({
             "id": id,
-            "file_name": path,
+            "file_name": os.path.join(coco_image_root, mode_internal, f"dataset/{id}.png"),
             "height": cfg["resolution_x"],
             "width": cfg["resolution_y"],
         })
@@ -169,7 +171,7 @@ def main(endpoint, taskid, coco_image_root):
             )).send()
 
     print()
-    util.saveCOCOlabel(coco_img, coco_label, camera_K, "/data/output/")
+    util.saveCOCOlabel(coco_img, coco_label, camera_K, basepath)
 
 
 if __name__ == "__main__":

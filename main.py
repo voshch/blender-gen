@@ -5,9 +5,8 @@ import subprocess
 import grequests as requests
 
 
-def configure(python_cmd):
-    proc = subprocess.Popen([python_cmd, "./src/configure.py",
-                            *sys.argv[1:]], stdout=sys.stdout, stderr=subprocess.PIPE)
+def configure(python_cmd, mode):
+    proc = subprocess.Popen([python_cmd, "./src/configure.py", "--mode_internal", mode, *sys.argv[1:]], stdout=sys.stdout, stderr=subprocess.PIPE)
     return proc.wait(), proc.stderr.read()
 
 
@@ -18,50 +17,60 @@ def render():
         return proc.wait(), proc.stderr.read()
 
 
-def merge(python_cmd):
-    proc = subprocess.Popen([python_cmd, "./src/merge.py", *
-                            sys.argv[1:]], stdout=sys.stdout, stderr=subprocess.PIPE)
+def merge(python_cmd, mode):
+    proc = subprocess.Popen([python_cmd, "./src/merge.py", "--mode_internal", mode, *sys.argv[1:]], stdout=sys.stdout, stderr=subprocess.PIPE)
     return proc.wait(), proc.stderr.read()
 
+
+def run(taskid, target, endpoint, mode):
+    python_cmd = os.path.realpath(sys.executable)
+
+    print(f"RUNNING BLENDER-GEN IN MODE {mode}", flush=True)
+    if target in ["all", "configure"]:
+        status, stderr = configure(python_cmd, mode)
+        if status != 0:
+            with open("/data/output/error.log", "ab") as f:
+                f.write("\n[STEP CONFIGURE]:\n".encode("ascii"))
+                f.write(stderr)
+            raise RuntimeError(
+                f"configure step failed with {status}. Log has been written to /data/output/error.log")
+
+    if target in ["all", "render"]:
+        status, stderr = render()
+        if status != 0:
+            with open("/data/output/error.log", "ab") as f:
+                f.write("\n[STEP RENDER]:\n".encode("ascii"))
+                f.write(stderr)
+            raise RuntimeError(
+                f"render step failed with {status}. Log has been written to /data/output/error.log")
+
+    if target in ["all", "merge"]:
+        status, stderr = merge(python_cmd, mode)
+        if status != 0:
+            with open("/data/output/error.log", "ab") as f:
+                f.write("\n[STEP MERGE]:\n".encode("ascii"))
+                f.write(stderr)
+            raise RuntimeError(
+                f"merge step failed with {status}. Log has been written to /data/output/error.log")
 
 @click.command(context_settings=dict(
     ignore_unknown_options=True,
     allow_extra_args=True,
 ))
+@click.option("--mode", default="all", help="all|train|val create training or validation dataset")
 @click.option("--target", type=click.Choice(["all", "configure", "render", "merge"]), default="all")
 @click.option("--endpoint", default=None, help="http endpoint for sending current progress")
 @click.option("--taskID", default="", help="task ID")
-def main(target, endpoint, taskid):
-
-    python_cmd = os.path.realpath(sys.executable)
+def main(mode, target, endpoint, taskid):
 
     try:
-        if target in ["all", "configure"]:
-            status, stderr = configure(python_cmd)
-            if status != 0:
-                with open("/data/output/error.log", "ab") as f:
-                    f.write("\n[STEP CONFIGURE]:\n".encode("ascii"))
-                    f.write(stderr)
-                raise RuntimeError(
-                    f"configure step failed with {status}. Log has been written to /data/output/error.log")
+        if mode in ["train", "all"]:
+            run(taskid, target, endpoint, "train")
+            print("\n", flush=True)
 
-        if target in ["all", "render"]:
-            status, stderr = render()
-            if status != 0:
-                with open("/data/output/error.log", "ab") as f:
-                    f.write("\n[STEP RENDER]:\n".encode("ascii"))
-                    f.write(stderr)
-                raise RuntimeError(
-                    f"render step failed with {status}. Log has been written to /data/output/error.log")
-
-        if target in ["all", "merge"]:
-            status, stderr = merge(python_cmd)
-            if status != 0:
-                with open("/data/output/error.log", "ab") as f:
-                    f.write("\n[STEP MERGE]:\n".encode("ascii"))
-                    f.write(stderr)
-                raise RuntimeError(
-                    f"merge step failed with {status}. Log has been written to /data/output/error.log")
+        if mode in ["val", "all"]:
+            run(taskid, target, endpoint, "val")
+            print("\n", flush=True)
 
     except RuntimeError as e:
         if endpoint != None:

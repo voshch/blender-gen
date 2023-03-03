@@ -67,11 +67,11 @@ docker run --gpus all --volume /path/to/input/folder/:/data/input --volume /path
 #### Arguments
 argument | type | default | description
 --------- | ----------- | ----------- | -----------
-`--target` | `all/configure/render/merge` | `all` | Run isolated pipeline steps with this command. Running `render` & `merge` requires persistent `/data/intermediate` directory.
 `--endpoint` | url | | HTTP endpoint for sending progress, finish, and error statuses 
 `--taskID` | string | | unique ID to identify this container from inside
-`--mode` | `train/val` | `train` | setting to `val` overwrites `config.output.just_merge` parameter with `0`
-`--coco-image-root` | path | "/data/output/dataset/" | Set `path` as prefix for path entries in the `annotation_coco.json` file.
+`--mode` | `train/val/all` | `all` | select which dataset parts to generate (train, val, both)
+`--coco-image-root` | path | "/data/output/" | Set `path` as prefix for path entries in the `annotation_coco.json` file.
+`--target` | `all/configure/render/merge` | `all` | Run isolated pipeline steps with this command. Running `render` & `merge` requires persistent `/data/intermediate` directory.
 
 ##### endpoint
 
@@ -80,7 +80,7 @@ API overview for sending requests to `endpoint`:
 event | endpoint | schema #
 --- | --- | ---
 merge progress | /output | `{id:string, progress:int, total:int}`
-all done | /done | `{id:string}`
+all done | /finished | `{id:string}`
 error | /error | `{id:string}`
 
 ## config.json
@@ -92,7 +92,8 @@ Parameter | Description
 `input.distractor` | list of `{model,texture}` objects
 `input.bg` | list of paths to static backgrounds
 `input.environment` | list of paths to 360° HDRI backgrounds
-`output.images` | number of generated images
+`output.size_train` | number of generated training images
+`output.size_val` | number of generated validation images
 `output.just_merge` | fraction of images that is produced by `merge.py`. ([0,1], higher number means more efficiency and less dataset variety)
 `output.skew_angle:material` | proportion of angle (inc, azi) samples to material (metallic, roughness) samples
 `render.camera.lens_unit` | Choose either 'FOV' or 'MILLIMETERS' (https://docs.blender.org/api/current/bpy.types.Camera.html#bpy.types.Camera.lens_unit)
