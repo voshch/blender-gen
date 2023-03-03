@@ -26,7 +26,8 @@
     },
 
     "output":{
-        "images": 100,
+        "size_train": 100,
+        "size_val": 10,
         "just_merge": 0.95,
         "skew_angle:material": 4
     },
