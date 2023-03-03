@@ -130,7 +130,7 @@ def main(endpoint, taskid, coco_image_root):
         id = f"{i:0{digits}}"
         path = os.path.join(coco_image_root, f"{id}.png")
 
-        cv.imwrite(path, merged)
+        cv.imwrite(os.path.join("/data/output/dataset/", f"{id}.png"), merged)
 
         coco_img.append({
             "id": id,
