@@ -71,7 +71,7 @@ def main(target, endpoint, taskid):
 
     else:
         if endpoint != None:
-            requests.post(f"{endpoint}/done", data=dict(id=taskid)).send()
+            requests.post(f"{endpoint}/finished", data=dict(id=taskid)).send()
 
         print("finished successfully")
 
