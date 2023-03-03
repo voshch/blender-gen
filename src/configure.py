@@ -48,8 +48,6 @@ def main(mode_internal):
     to_produce = config["output"]["images"]
     to_produce *= (1-config["output"]["just_merge"])
     to_produce /= (len(config["input"]["object"]) or 1) + len(config["input"]["distractor"])
-    to_produce /= (len(config["input"]["bg"]) +
-                   len(config["input"]["environment"])) or 1
 
     dof_ang = isinstance(config["random"]["inc"], list) + \
         isinstance(config["random"]["azi"], list)
