@@ -116,7 +116,7 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
 
     basepath = os.path.join("/data/output/", mode_internal)
 
-    os.makedirs(os.path.join(basepath, "dataset"), exist_ok=True)
+    os.makedirs(os.path.join(basepath, "images"), exist_ok=True)
 
     coco_img = []
     coco_label = []
@@ -132,11 +132,11 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
 
         id = f"{i:0{digits}}"
 
-        cv.imwrite(os.path.join(basepath, f"dataset/{id}.png"), merged)
+        cv.imwrite(os.path.join(basepath, f"images/{id}.png"), merged)
 
         coco_img.append({
             "id": id,
-            "file_name": os.path.join(coco_image_root, mode_internal, f"dataset/{id}.png"),
+            "file_name": os.path.join(coco_image_root, mode_internal, f"images/{id}.png"),
             "height": cfg["resolution_x"],
             "width": cfg["resolution_y"],
         })
