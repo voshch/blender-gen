@@ -57,7 +57,7 @@ def run(taskid, target, endpoint, mode):
     ignore_unknown_options=True,
     allow_extra_args=True,
 ))
-@click.option("--mode", default="all", help="all|train|val create training or validation dataset")
+@click.option("--mode", default="all", help="all|train|val create training or validation images")
 @click.option("--target", type=click.Choice(["all", "configure", "render", "merge"]), default="all")
 @click.option("--endpoint", default=None, help="http endpoint for sending current progress")
 @click.option("--taskID", default="", help="task ID")

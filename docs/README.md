@@ -94,7 +94,7 @@ Parameter | Description
 `input.environment` | list of paths to 360° HDRI backgrounds
 `output.size_train` | number of generated training images
 `output.size_val` | number of generated validation images
-`output.just_merge` | fraction of images that is produced by `merge.py`. ([0,1], higher number means more efficiency and less dataset variety)
+`output.just_merge` | fraction of images that is produced by `merge.py`. ([0,1], higher number means more efficiency and less image variety)
 `output.skew_angle:material` | proportion of angle (inc, azi) samples to material (metallic, roughness) samples
 `render.camera.lens_unit` | Choose either 'FOV' or 'MILLIMETERS' (https://docs.blender.org/api/current/bpy.types.Camera.html#bpy.types.Camera.lens_unit)
 `render.camera.lens` | Camera lens value in chosen unit.

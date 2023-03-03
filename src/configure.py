@@ -14,7 +14,7 @@ def draw_samples(range, samples):
     ignore_unknown_options=True,
     allow_extra_args=True,
 ))
-@click.option("--mode_internal", default="train", help="train|val create training or validation dataset")
+@click.option("--mode_internal", default="train", help="train|val create training or validation images")
 def main(mode_internal):
 
     config = None
