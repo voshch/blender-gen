@@ -94,11 +94,11 @@ def main(mode_internal):
 
     # MERGE
 
-    bg = None
-    if "bg" in config["input"]:
-        bg = config["input"]["bg"]  # 360° environment not implemented yet
+    backgrounds = None
+    if "backgrounds" in config["input"]:
+        backgrounds = config["input"]["backgrounds"]  # 360° environment not implemented yet
     else:
-        bg = os.listdir("/data/input/bg/static")
+        backgrounds = os.listdir("/data/input/backgrounds/static")
 
     conf_merge = []
 
@@ -110,8 +110,8 @@ def main(mode_internal):
 
     for i in range(config["output"]["images"]):
         merge = dict(
-            bg=dict(
-                name=random.choice(bg)
+            backgrounds=dict(
+                name=random.choice(backgrounds)
             ),
             object=dict(
                 name=f'{config["input"]["object"][i%no_objects]["model"]}-{random.choice(targets["inc"])}-{random.choice(targets["azi"])}-{random.choice(targets["metallic"])}-{random.choice(targets["roughness"])}.png',

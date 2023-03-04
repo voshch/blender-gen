@@ -688,7 +688,6 @@ def main():
 
     all_annotations = {}
 
-    print(conf["targets"])
 
     for obj_conf in conf["targets"]["object"]:
         log.write(f'Rendering object {obj_conf["label"]}\n')
@@ -709,9 +708,9 @@ def main():
         del obj
 
     # copy static backgrounds
-    os.makedirs("/data/intermediate/bg/", exist_ok=True)
-    shutil.copytree("/data/input/bg/static/",
-                    "/data/intermediate/bg/", dirs_exist_ok=True)
+    os.makedirs("/data/intermediate/backgrounds/", exist_ok=True)
+    shutil.copytree("/data/input/backgrounds/static/",
+                    "/data/intermediate/backgrounds/", dirs_exist_ok=True)
 
     # render dyn backgrounds
     #

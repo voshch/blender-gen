@@ -20,7 +20,7 @@ storage = None
 def reset():
     global storage
     storage = {
-        "bg": {},
+        "backgrounds": {},
         "object": {},
         "distractor": {}
     }
@@ -34,9 +34,9 @@ def load(target: str, name: str):
     if name is storage[target]:
         return storage[target][name]
 
-    if target == "bg":
+    if target == "backgrounds":
         storage[target][name] = cv.resize(
-            cv.imread(f"/data/intermediate/bg/{name}", cv.IMREAD_UNCHANGED),
+            cv.imread(f"/data/intermediate/backgrounds/{name}", cv.IMREAD_UNCHANGED),
             (cfg["resolution_x"], cfg["resolution_y"]),
             interpolation=cv.INTER_AREA
         )
@@ -69,14 +69,29 @@ def transform(img: np.ndarray, x: np.float64, y: np.float64, z: np.float64):
 
 def layer(img: np.ndarray, overlay: np.ndarray):
     alpha = overlay[..., -1]/255.
-    alphas = np.dstack((alpha, alpha, alpha))
+    alphas = np.dstack([alpha] * img.shape[2])
     img *= 1-alphas
-    img += alphas*overlay[..., :-1]
+    
+    desired_shape = img.shape[2]
+    
+    new_overlay = overlay
+    overlay_shape_offset = desired_shape - overlay.shape[2]
+    
+    if overlay_shape_offset < 0:
+        new_overlay = overlay[..., :(desired_shape - overlay.shape[2])]
+    
+    new_alphas = alphas 
+    alpha_shape_offset = desired_shape - alphas.shape[2]
+
+    if alpha_shape_offset < 0:
+        new_alphas = alphas[..., :(desired_shape - alphas.shape[2])]
+
+    img += new_alphas * new_overlay
     return img
 
 
-def merge(bg, obj, distractor):
-    im_bg = load("bg", bg["name"])
+def merge(backgrounds, obj, distractor):
+    im_bg = load("backgrounds", backgrounds["name"])
     im_obj = load("object", obj["name"])
     im_distractor = list(
         map(lambda x: load("distractor", x["name"]), distractor))
@@ -128,7 +143,7 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
 
     for i, conf in enumerate(merges):
 
-        merged, trf = merge(conf["bg"], conf["object"], conf["distractor"])
+        merged, trf = merge(conf["backgrounds"], conf["object"], conf["distractor"])
 
         id = f"{i:0{digits}}"
 

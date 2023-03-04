@@ -74,13 +74,13 @@ def main(mode, target, endpoint, taskid):
 
     except RuntimeError as e:
         if endpoint != None:
-            requests.post(f"{endpoint}/error", data=dict(id=taskid)).send()
+            requests.post(f"{endpoint}/stop", data=dict(taskId=taskid)).send()
 
         raise e
 
     else:
         if endpoint != None:
-            requests.post(f"{endpoint}/finished", data=dict(id=taskid)).send()
+            requests.post(f"{endpoint}/finished", data=dict(taskId=taskid)).send()
 
         print("finished successfully")
 
