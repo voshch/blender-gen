@@ -3,24 +3,16 @@
     "input":{
         "object": [
             {
-                "model": "Suzanne.obj",
-                "texture": "brick_floor_003_diffuse_1k.jpg",
+                "model": "Suzanne",
                 "label": "Suzanne"
             }
         ],
 
         "distractor": [
             {
-                "model": "Cube.obj",
-                "texture": "bark_brown_02_diff_1k.jpg"
-            },
-            {
-                "model": "Cube.obj",
-                "texture": "brick_floor_003_diffuse_1k.jpg"
+                "model": "Cube"
             }
         ],
-
-        "bg":["pexels-pixabay-221047.jpg"],
         "environment":[]
 
     },

@@ -53,7 +53,6 @@ class Target:
         config["roughness"] = config["roughness"] or [1]
 
         self.model = config["model"]
-        self.texture = config["texture"]
 
         self.config = config
 
@@ -78,7 +77,6 @@ class Target:
 
 class Object(Target):
     model_path = "/data/input/models/"
-    texture_path = "/data/input/textures/"
     type = "object"
 
     def __init__(self, config=None):
@@ -90,7 +88,6 @@ class Object(Target):
 
 class Distractor(Target):
     model_path = "/data/input/models/"
-    texture_path = "/data/input/textures/"
     type = "distractor"
 
 # def _print(*args, **kwargs):
@@ -102,6 +99,7 @@ def importPLYobject(filepath, conf_obj, scale):
     """import PLY object from path and scale it."""
 
     if conf_obj.model in bpy.data.objects:
+        
         return bpy.data.objects[conf_obj.model]
 
     bpy.ops.import_mesh.ply(filepath=filepath)
@@ -134,7 +132,9 @@ def importOBJobject(filepath, conf_obj, distractor=False):
     """import an *.OBJ file to Blender"""
 
     if conf_obj.model in bpy.data.objects:
-        return bpy.data.objects[conf_obj.model]
+        bpy.ops.object.select_all(action='DESELECT')
+        bpy.data.objects[conf_obj.model].select_set(True)
+        bpy.ops.object.delete()
 
     bpy.ops.import_scene.obj(filepath=filepath, axis_forward='Y', axis_up='Z')
     # print("importing model with axis_forward=Y, axis_up=Z")
@@ -155,7 +155,7 @@ def importOBJobject(filepath, conf_obj, distractor=False):
     bsdf = nodes.get("Principled BSDF")
 
     texture = nodes.new(type="ShaderNodeTexImage")
-    mat_links.new(texture.outputs['Color'], bsdf.inputs['Base Color'])
+    #mat_links.new(texture.outputs['Color'], bsdf.inputs['Base Color'])
 
     # save object material inputs
     config["metallic"].append(bsdf.inputs['Metallic'].default_value)
@@ -330,7 +330,7 @@ def add_shader_on_world():
         emission_node.outputs['Emission'], world_node.inputs['Surface'])
 
 
-def scene_cfg(camera, conf_obj, texture, inc, azi, metallic, roughness):
+def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
     """configure the blender scene with specific config"""
 
     scene = bpy.data.scenes['Scene']
@@ -338,23 +338,25 @@ def scene_cfg(camera, conf_obj, texture, inc, azi, metallic, roughness):
 
     obj = None
 
-    if conf_obj.model[-4:].lower() == ".obj":
-        obj = importOBJobject(os.path.join(
-            conf_obj.model_path, conf_obj.model), conf_obj)
-    elif conf_obj.model[-4:].lower() == ".ply":
-        obj = importPLYobject(os.path.join(
-            conf_obj.model_path, conf_obj.model), conf_obj, scale=config["model_scale"])
+    files = os.listdir(os.path.join(conf_obj.model_path, conf_obj.model))
+
+    if "model.obj" in files:
+        obj = importOBJobject(os.path.join(conf_obj.model_path, conf_obj.model, "model.obj"), conf_obj)
+    elif "model.ply" in files:
+        obj = importPLYobject(os.path.join(conf_obj.model_path, conf_obj.model, "model.ply"), conf_obj, scale=config["model_scale"])
+    else:
+        raise FileNotFoundError()
 
     obj.hide_render = False
 
     mat = obj.active_material
     nodes = mat.node_tree.nodes
 
-    texture_node = nodes.get("Image Texture")
-    if texture_node:
-        bpy.data.images.load(os.path.join(
-            conf_obj.texture_path, texture), check_existing=True)
-        texture_node.image = bpy.data.images[texture]
+    #texture_node = nodes.get("Image Texture")
+    #if texture_node:
+    #    bpy.data.images.load(os.path.join(
+    #        conf_obj.texture_path, texture), check_existing=True)
+    #    texture_node.image = bpy.data.images[texture]
 
     obj.rotation_euler = (0, 0, 0)
 
@@ -620,13 +622,11 @@ def render(camera, conf_obj, cat="unsorted", log=sys.stdout):
     #  render loop
     for inc, azi, metallic, roughness in conf_obj.configs():
 
-        texture = conf_obj.config["texture"]
-
-        log.write(f"\t{texture} - {inc} - {azi} - {metallic} - {roughness}\n")
+        log.write(f"\t{inc} - {azi} - {metallic} - {roughness}\n")
         log.flush()
 
         bpy.context.scene.render.filepath = f'/data/intermediate/render/renders/{cat}/{conf_obj.model}-{inc}-{azi}-{metallic}-{roughness}.png'
-        annotation = scene_cfg(camera, conf_obj, texture,
+        annotation = scene_cfg(camera, conf_obj,
                                inc, azi, metallic, roughness)
         
         if cat == "object":
@@ -687,6 +687,8 @@ def main():
     camera, depth_file_output = setup()  # setup once
 
     all_annotations = {}
+
+    print(conf["targets"])
 
     for obj_conf in conf["targets"]["object"]:
         log.write(f'Rendering object {obj_conf["label"]}\n')

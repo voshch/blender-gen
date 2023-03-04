@@ -94,7 +94,11 @@ def main(mode_internal):
 
     # MERGE
 
-    bg = config["input"]["bg"]  # 360° environment not implemented yet
+    bg = None
+    if "bg" in config["input"]:
+        bg = config["input"]["bg"]  # 360° environment not implemented yet
+    else:
+        bg = os.listdir("/data/input/bg/static")
 
     conf_merge = []
 
