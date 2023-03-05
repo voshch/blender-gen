@@ -121,37 +121,4 @@ API overview for sending requests to `endpoint`:
 | `random.metallic`              | range for "metallic-ness" of model texture                                                                                                                      | `[0, 0.2]`                               |
 | `random.roughness`             | range for roughness/polishedness of model texture                                                                                                               | `[0.1, 0.6]`                             |
 
-| Parameter                      | Description                                                                                                                                                     |
-| ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `input.object`                 | list of `{model,texture,label}` objects                                                                                                                         |
-| `input.distractor`             | list of `{model,texture}` objects                                                                                                                               |
-| `input.bg`                     | list of paths to static backgrounds                                                                                                                             |
-| `input.environment`            | list of paths to 360° HDRI backgrounds                                                                                                                          |
-| `output.size_train`            | number of generated training images                                                                                                                             |
-| `output.size_val`              | number of generated validation images                                                                                                                           |
-| `output.just_merge`            | fraction of images that is produced by `merge.py`. ([0,1], higher number means more efficiency and less image variety)                                          |
-| `output.skew_angle:material`   | proportion of angle (inc, azi) samples to material (metallic, roughness) samples                                                                                |
-| `render.camera.lens_unit`      | Choose either 'FOV' or 'MILLIMETERS' (https://docs.blender.org/api/current/bpy.types.Camera.html#bpy.types.Camera.lens_unit)                                    |
-| `render.camera.lens`           | Camera lens value in chosen unit.                                                                                                                               |
-| `render.camera.clip_end`       | Camera far clipping distance (https://docs.blender.org/api/current/bpy.types.Camera.html)                                                                       |
-| `render.camera.clip_start`     | Camera near clipping distance (https://docs.blender.org/api/current/bpy.types.Camera.html)                                                                      |
-| `render.resolution_x`          | Pixel resolution of the output image (width)                                                                                                                    |
-| `render.resolution_y`          | Pixel resolution of the output image (height)                                                                                                                   |
-| `render.model_scale`           | model scale for .PLY models                                                                                                                                     |
-| `render.exposure`              | exposure                                                                                                                                                        |
-| `render.compute_bbox`          | Choose _'tight'_ or _'fast'_. _Tight_ uses all vertices to compute a tight bbox but it is slower. _Fast_ uses only the 3D Bounding Box corners.                 |
-| `render.use_cycles`            | Boolean. If True, cycles will be used as rendering engine. If False, Eevee will be used                                                                         |
-| `render.samples`               | Render engine number of samples (sets cycles.samples)                                                                                                           |
-| `render.use_cycles_denoising`  | Boolean. If True, the rendered images are denoised afterwards (https://docs.blender.org/manual/en/latest/render/cycles/render_settings/sampling.html#denoising) |
-| `render.use_adaptive_sampling` | Boolean. If True, adaptive sampling is used (https://docs.blender.org/manual/en/latest/render/cycles/render_settings/sampling.html#adaptive-sampling)           |
-| `render.use_GPU`               | Boolean. If True, the GPU will be used for rendering                                                                                                            |
-| `random.distractors`           | range for number of distractor objects per image                                                                                                                |
-| `random.x_pos`                 | range for x offset (in % of image width)                                                                                                                        |
-| `random.y_pos`                 | range for y offset (in % of image height)                                                                                                                       |
-| `random.z_pos`                 | range for y offset (in % of camera distance. distances `<= -1` get clipped)                                                                                     |
-| `random.inc`                   | range for inclination angles                                                                                                                                    |
-| `random.azi`                   | range for azimuth angles                                                                                                                                        |
-| `random.metallic`              | range for "metallic-ness" of model texture                                                                                                                      |
-| `random.roughness`             | range for roughness/polishedness of model texture                                                                                                               |
-
 All ranges in the last section are 2-element list [low, high]. If a constant value is desired, a scalar can be written instead of a list.
