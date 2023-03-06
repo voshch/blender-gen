@@ -1,3 +1,4 @@
+import util
 import cv2 as cv
 import numpy as np
 import json
@@ -5,10 +6,17 @@ import os
 import sys
 import click
 import grequests as requests
+import base64
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
-import util
+
+class Parameters:
+    preview_size = 10
+    preview_width = 480
+    preview_height = 360
+    preview_ext = ".jpg"
+
 
 cfg = None
 with open("/data/intermediate/config/render.json") as f:
@@ -36,7 +44,8 @@ def load(target: str, name: str):
 
     if target == "backgrounds":
         storage[target][name] = cv.resize(
-            cv.imread(f"/data/intermediate/backgrounds/{name}", cv.IMREAD_UNCHANGED),
+            cv.imread(
+                f"/data/intermediate/backgrounds/{name}", cv.IMREAD_UNCHANGED),
             (cfg["resolution_x"], cfg["resolution_y"]),
             interpolation=cv.INTER_AREA
         )
@@ -71,16 +80,16 @@ def layer(img: np.ndarray, overlay: np.ndarray):
     alpha = overlay[..., -1]/255.
     alphas = np.dstack([alpha] * img.shape[2])
     img *= 1-alphas
-    
+
     desired_shape = img.shape[2]
-    
+
     new_overlay = overlay
     overlay_shape_offset = desired_shape - overlay.shape[2]
-    
+
     if overlay_shape_offset < 0:
         new_overlay = overlay[..., :(desired_shape - overlay.shape[2])]
-    
-    new_alphas = alphas 
+
+    new_alphas = alphas
     alpha_shape_offset = desired_shape - alphas.shape[2]
 
     if alpha_shape_offset < 0:
@@ -90,7 +99,7 @@ def layer(img: np.ndarray, overlay: np.ndarray):
     return img
 
 
-def merge(backgrounds, obj, distractor):
+def merge(backgrounds, obj, distractor=[]):
     im_bg = load("backgrounds", backgrounds["name"])
     im_obj = load("object", obj["name"])
     im_distractor = list(
@@ -105,6 +114,10 @@ def merge(backgrounds, obj, distractor):
         layer(img, transform(im_dist, *dist["translation"])[0])
 
     return img, trf
+
+
+def create_preview(img):
+    return base64.b64encode(cv.imencode(Parameters.preview_ext, cv.resize(img, (Parameters.preview_width, Parameters.preview_height), cv.INTER_AREA))[1]).decode("utf-8")
 
 
 @click.command(context_settings=dict(
@@ -139,15 +152,31 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
     total = len(merges)
     digits = len(str(total))
 
+    if endpoint != None:
+        preview0, tf = merge(merges[-1]["backgrounds"], merges[-1]["object"])
+        requests.post(f"{endpoint}/datasetPreview/", data=dict(
+            taskId=taskid,
+            mode=mode_internal,
+            image=create_preview(preview0)
+        ))
+
     print(f"\r{0:0{digits}} / {total}", end="", flush=True)
 
     for i, conf in enumerate(merges):
 
-        merged, trf = merge(conf["backgrounds"], conf["object"], conf["distractor"])
+        merged, trf = merge(conf["backgrounds"],
+                            conf["object"], conf["distractor"])
 
         id = f"{i:0{digits}}"
 
         cv.imwrite(os.path.join(basepath, f"images/{id}.png"), merged)
+
+        if (endpoint != None) and (i < Parameters.preview_size - 1):
+            requests.post(f"{endpoint}/datasetPreview/", data=dict(
+                taskId=taskid,
+                mode=mode_internal,
+                image=create_preview(merged)
+            )).send()
 
         coco_img.append({
             "id": id,
@@ -167,7 +196,7 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
 
         coco_label.append({
             **annotation,
-            "id": id, #overwrite
+            "id": id,  # overwrite
             "image_id": id,
             "category_id": 0,
             "segmentation": [],
@@ -178,9 +207,9 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
 
         print(f"\r{i+1:0{digits}} / {total}", end="", flush=True)
 
-        if not endpoint == None:
+        if endpoint != None:
             requests.post(f"{endpoint}/output", data=dict(
-                id=taskid,
+                taskId=taskid,
                 progress=i+1,
                 total=total
             )).send()

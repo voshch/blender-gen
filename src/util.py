@@ -2,6 +2,7 @@ import random
 import datetime
 import json
 import os
+import sys
 
 
 def bench():
@@ -97,3 +98,20 @@ def saveCOCOlabel(images, annotations, Kdict, path):
 
     with open(os.path.join(path, "annotation_coco.json"), "w") as write_file:
         json.dump(coco, write_file, indent=2)
+
+
+
+
+class Log:
+    stdout = sys.stdout
+    stderr = sys.stderr
+
+    def print(self, message):
+        self.stdout.write(message)
+        self.stdout.write("\n")
+        self.stdout.flush()
+
+    def err(self, message):
+        self.stderr.write(message)
+        self.stderr.write("\n")
+        self.stderr.flush()

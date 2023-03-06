@@ -3,55 +3,58 @@ import sys
 import click
 import subprocess
 import grequests as requests
+import socket
+
+sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
+
+import util
+
+log = util.Log()
 
 
 def configure(python_cmd, mode):
-    proc = subprocess.Popen([python_cmd, "./src/configure.py", "--mode_internal", mode, *sys.argv[1:]], stdout=sys.stdout, stderr=subprocess.PIPE)
-    return proc.wait(), proc.stderr.read()
+    log.print(f"RUNNING CONFIGURE STEP:\n")
+    proc = subprocess.Popen([python_cmd, "./src/configure.py", "--mode_internal",
+                            mode, *sys.argv[1:]], stdout=log.stdout, stderr=log.stderr)
+    return proc.wait()
 
 
 def render():
-    with open(os.devnull, "w") as devnull:
-        proc = subprocess.Popen(["blender", "--background", "--python",
-                                "./src/render.py"], stdout=devnull, stderr=subprocess.PIPE)
-        return proc.wait(), proc.stderr.read()
+    log.print(f"RUNNING RENDER STEP:\n")
+    proc = subprocess.Popen(["blender", "--background", "--python",
+                            "./src/render.py"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+    return proc.wait()
 
 
 def merge(python_cmd, mode):
-    proc = subprocess.Popen([python_cmd, "./src/merge.py", "--mode_internal", mode, *sys.argv[1:]], stdout=sys.stdout, stderr=subprocess.PIPE)
-    return proc.wait(), proc.stderr.read()
+    log.print(f"RUNNING MERGE STEP:\n")
+    proc = subprocess.Popen([python_cmd, "./src/merge.py", "--mode_internal",
+                            mode, *sys.argv[1:]], stdout=log.stdout, stderr=log.stderr)
+    return proc.wait()
 
 
 def run(taskid, target, endpoint, mode):
     python_cmd = os.path.realpath(sys.executable)
 
-    print(f"RUNNING BLENDER-GEN IN MODE {mode}", flush=True)
+    log.print(f"!!RUNNING BLENDER-GEN IN MODE {mode}\n")
     if target in ["all", "configure"]:
-        status, stderr = configure(python_cmd, mode)
+        status = configure(python_cmd, mode)
         if status != 0:
-            with open("/data/output/error.log", "ab") as f:
-                f.write("\n[STEP CONFIGURE]:\n".encode("ascii"))
-                f.write(stderr)
             raise RuntimeError(
-                f"configure step failed with {status}. Log has been written to /data/output/error.log")
+                f"configure step failed with {status}")
 
     if target in ["all", "render"]:
-        status, stderr = render()
+        status = render()
         if status != 0:
-            with open("/data/output/error.log", "ab") as f:
-                f.write("\n[STEP RENDER]:\n".encode("ascii"))
-                f.write(stderr)
             raise RuntimeError(
-                f"render step failed with {status}. Log has been written to /data/output/error.log")
+                f"render step failed with {status}")
 
     if target in ["all", "merge"]:
-        status, stderr = merge(python_cmd, mode)
+        status = merge(python_cmd, mode)
         if status != 0:
-            with open("/data/output/error.log", "ab") as f:
-                f.write("\n[STEP MERGE]:\n".encode("ascii"))
-                f.write(stderr)
             raise RuntimeError(
-                f"merge step failed with {status}. Log has been written to /data/output/error.log")
+                f"merge step failed with {status}")
+
 
 @click.command(context_settings=dict(
     ignore_unknown_options=True,
@@ -61,28 +64,47 @@ def run(taskid, target, endpoint, mode):
 @click.option("--target", type=click.Choice(["all", "configure", "render", "merge"]), default="all")
 @click.option("--endpoint", default=None, help="http endpoint for sending current progress")
 @click.option("--taskID", default="", help="task ID")
-def main(mode, target, endpoint, taskid):
+@click.option("--output", type=click.Choice(["shell", "file"]), default="shell", help="output to stdout or to /data/output/log.txt")
+def main(mode, target, endpoint, taskid, output):
+
+    with open("/data/intermediate/config/log.conf", "w") as f:  # for blender python script
+        f.write(output)
+
+    if output == "file":
+        # the easiest way to create or truncate
+        open("/data/output/stdout.log", "w").close()
+        log.stdout = open("/data/output/stdout.log", "a")
+        open("/data/output/stderr.log", "w").close()
+        log.stderr = open("/data/output/stderr.log", "a")
 
     try:
         if mode in ["train", "all"]:
             run(taskid, target, endpoint, "train")
-            print("\n", flush=True)
+            log.print("\n")
 
         if mode in ["val", "all"]:
             run(taskid, target, endpoint, "val")
-            print("\n", flush=True)
+            log.print("\n")
 
     except RuntimeError as e:
         if endpoint != None:
             requests.post(f"{endpoint}/stop", data=dict(taskId=taskid)).send()
 
+        # https://stackoverflow.com/a/45532289
+        log.err(e["message"] if hasattr(e, "message") else repr(e))
         raise e
 
     else:
         if endpoint != None:
-            requests.post(f"{endpoint}/finished", data=dict(taskId=taskid)).send()
+            requests.post(f"{endpoint}/finished",
+                          data=dict(taskId=taskid)).send()
 
-        print("finished successfully")
+        log.print("finished successfully")
+
+    finally:
+        if output == "file":
+            log.stdout.close()
+            log.stderr.close()
 
 
 if __name__ == "__main__":
