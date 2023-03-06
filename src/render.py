@@ -23,6 +23,8 @@ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 import util
 
+log = util.Log()
+
 config = None
 with open("/data/intermediate/config/render.json") as f:
     config = json.load(f)
@@ -612,7 +614,7 @@ def render_cfg():
     bpy.context.scene.render.resolution_y = config["resolution_y"]
 
 
-def render(camera, conf_obj, cat="unsorted", log=sys.stdout):
+def render(camera, conf_obj, cat="unsorted"):
     """main loop to render images"""
 
     render_cfg()  # setup render config once
@@ -622,8 +624,7 @@ def render(camera, conf_obj, cat="unsorted", log=sys.stdout):
     #  render loop
     for inc, azi, metallic, roughness in conf_obj.configs():
 
-        log.write(f"\t{inc} - {azi} - {metallic} - {roughness}\n")
-        log.flush()
+        log.print(f"\t{inc} - {azi} - {metallic} - {roughness}\n")
 
         bpy.context.scene.render.filepath = f'/data/intermediate/render/renders/{cat}/{conf_obj.model}-{inc}-{azi}-{metallic}-{roughness}.png'
         annotation = scene_cfg(camera, conf_obj,
@@ -676,7 +677,6 @@ def main():
         conf["targets"] = json.load(f)
 
     # log = open("/log.txt", "w")
-    log = sys.stdout
 
     parser = argparse.ArgumentParser()
     parser.add_argument("--python")
@@ -690,21 +690,19 @@ def main():
 
 
     for obj_conf in conf["targets"]["object"]:
-        log.write(f'Rendering object {obj_conf["label"]}\n')
-        log.flush()
+        log.print(f'Rendering object {obj_conf["model"]}\n')
         obj = Object(obj_conf)
 
-        annotations = render(camera, obj, cat="object", log=log)  # render loop
+        annotations = render(camera, obj, cat="object")  # render loop
         for annotation in annotations:
             all_annotations[annotation["id"]] = annotation
 
         del obj
 
     for dist_conf in conf["targets"]["distractor"]:
-        log.write(f'Rendering distractor {obj_conf["model"]}\n')
-        log.flush()
+        log.print(f'Rendering distractor {dist_conf["model"]}\n')
         obj = Distractor(dist_conf)
-        render(camera, obj, cat="distractor", log=log)  # render loop
+        render(camera, obj, cat="distractor")  # render loop
         del obj
 
     # copy static backgrounds
@@ -728,4 +726,22 @@ def main():
 
 
 if __name__ == '__main__':
-    main()
+
+    with open("/data/intermediate/config/log.conf", "r") as f:
+        output = f.read()
+
+    if output == "file":
+        log.stdout = open("/data/output/stdout.log", "a")
+        log.stderr = open("/data/output/stderr.log", "a")
+    # won't print to terminal in any case
+
+    try:
+        main()
+    except Exception as e:
+        log.err(e["message"] if hasattr(e, "message") else repr(e))
+        raise e
+
+    finally:
+        if output == "file":
+            log.stdout.close()
+            log.stderr.close()
