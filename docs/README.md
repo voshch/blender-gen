@@ -75,6 +75,7 @@ docker run --gpus all --volume /path/to/input/folder/:/data/input --volume /path
 | `--mode`            | `train/val/all`              | `all`                   | select which dataset parts to generate (train, val, both)                                                                     |
 | `--coco-image-root` | path                         | `"/data/output/[mode]"` | Set `path` as prefix for path entries in the `annotation_coco.json` file (produces `[path]/images/[imagename]`)               |
 | `--target`          | `all/configure/render/merge` | `all`                   | Run isolated pipeline steps with this command. Running `render` & `merge` requires persistent `/data/intermediate` directory. |
+| `--output`          | `shell/file`                 | `shell`                 | Write output to `stdout`, `stderr` OR `/data/output/stdout.log`, `/data/output/stderr.log`                                    |
 
 ##### endpoint
 
