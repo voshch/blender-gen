@@ -67,6 +67,7 @@ def run(taskid, target, endpoint, mode):
 @click.option("--output", type=click.Choice(["shell", "file"]), default="shell", help="output to stdout or to /data/output/log.txt")
 def main(mode, target, endpoint, taskid, output):
 
+    os.makedirs("/data/intermediate/config/", exist_ok=True)
     with open("/data/intermediate/config/log.conf", "w") as f:  # for blender python script
         f.write(output)
 
