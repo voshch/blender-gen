@@ -89,7 +89,7 @@ def main(mode, target, endpoint, taskid, output):
 
     except RuntimeError as e:
         if endpoint != None:
-            requests.post(f"{endpoint}/stop", data=dict(taskId=taskid)).send()
+            requests.post(f"{endpoint}/task/stop", json=dict(taskId=taskid)).send()
 
         # https://stackoverflow.com/a/45532289
         log.err(e["message"] if hasattr(e, "message") else repr(e))
@@ -97,8 +97,8 @@ def main(mode, target, endpoint, taskid, output):
 
     else:
         if endpoint != None:
-            requests.post(f"{endpoint}/finished",
-                          data=dict(taskId=taskid)).send()
+            requests.post(f"{endpoint}/task/finish",
+                          json=dict(taskId=taskid)).send()
 
         log.print("finished successfully")
 

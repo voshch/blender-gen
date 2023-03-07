@@ -156,7 +156,7 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
 
     if endpoint != None:
         preview0, tf = merge(merges[-1]["backgrounds"], merges[-1]["object"])
-        requests.post(f"{endpoint}/datasetPreview/", data=dict(
+        requests.post(f"{endpoint}/task/datasetPreview/", json=dict(
             taskId=taskid,
             mode=mode_internal,
             image=create_preview(preview0)
@@ -174,7 +174,7 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
         cv.imwrite(os.path.join(basepath, f"images/{id}.png"), merged)
 
         if (endpoint != None) and (i < Parameters.preview_size - 1):
-            requests.post(f"{endpoint}/datasetPreview/", data=dict(
+            requests.post(f"{endpoint}/task/datasetPreview/", json=dict(
                 taskId=taskid,
                 mode=mode_internal,
                 image=create_preview(merged)
@@ -214,7 +214,7 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
         print(f"\r{i+1:0{digits}} / {total}", end="", flush=True)
 
         if endpoint != None:
-            requests.post(f"{endpoint}/output", data=dict(
+            requests.post(f"{endpoint}/task/output", json=dict(
                 taskId=taskid,
                 progress=i+1,
                 total=total

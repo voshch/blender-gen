@@ -84,7 +84,7 @@ API overview for sending requests to `endpoint`:
 | event          | endpoint  | schema                                     |
 | -------------- | --------- | ------------------------------------------ |
 | merge progress | /output   | `{taskId:string, progress:int, total:int}` |
-| all done       | /finished | `{taskId:string}`                          |
+| all done       | /finish | `{taskId:string}`                          |
 | error          | /stop     | `{taskId:string}`                          |
 
 ## config.json
