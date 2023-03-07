@@ -197,18 +197,18 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
         ]
 
         #
-        # trf_keypoints = (trf @ np.array(map(lambda x: x+[1], annotation["keypoints"])))[:2,:]
+        trf_segmentation = [(trf @ np.array([*vec, 1])).tolist() for vec in annotation["hull"]]
 
         coco_label.append({
             "id": id,  # overwrite
             "image_id": id,
             "category_id": 0,
-            "segmentation": [],
+            "segmentation": trf_segmentation,
             "iscrowd": 0,
             "bbox": trf_bbox,
             "area": trf_bbox[2] * trf_bbox[3],
-            "keypoints": annotation["keypoints"],
-            "num_keypoints": len(annotation["keypoints"])
+            "keypoints": [],
+            "num_keypoints": 0
         })
 
         print(f"\r{i+1:0{digits}} / {total}", end="", flush=True)
