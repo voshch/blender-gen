@@ -1,3 +1,4 @@
+
 import os
 import sys
 import click
@@ -6,7 +7,6 @@ import grequests as requests
 import socket
 
 sys.path.append(os.path.join(os.path.dirname(os.path.abspath(__file__)), "src"))
-
 import util
 
 log = util.Log()
@@ -20,10 +20,20 @@ def configure(python_cmd, mode):
 
 
 def render():
+    if os.path.isfile("/data/intermediate/render/render.lock"):
+        os.remove("/data/intermediate/render/render.lock")
+
     log.print(f"RUNNING RENDER STEP:\n")
     proc = subprocess.Popen(["blender", "--background", "--python",
                             "./src/render.py"], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-    return proc.wait()
+    
+    proc.wait()
+    
+    if os.path.isfile("/data/intermediate/render/render.lock"):
+        os.remove("/data/intermediate/render/render.lock")
+        return 0
+    
+    return 1
 
 
 def merge(python_cmd, mode):
@@ -90,7 +100,8 @@ def main(mode, target, endpoint, taskid, output):
 
     except RuntimeError as e:
         if endpoint != None:
-            requests.post(f"{endpoint}/task/stop", json=dict(taskId=taskid)).send()
+            requests.post(f"{endpoint}/task/stop",
+                          json=dict(taskId=taskid)).send()
 
         # https://stackoverflow.com/a/45532289
         log.err(e["message"] if hasattr(e, "message") else repr(e))
