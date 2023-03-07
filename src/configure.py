@@ -106,6 +106,8 @@ def main(mode_internal):
     dof_pos_y = isinstance(config["random"]["y_pos"], list)
     dof_pos_z = isinstance(config["random"]["z_pos"], list)
 
+    dof_distractors = isinstance(config["random"]["distractors"], list)
+
     no_objects = len(config["input"]["object"])
 
     for i in range(config["output"]["images"]):
@@ -127,7 +129,7 @@ def main(mode_internal):
             distractor=[]
         )
 
-        for j in range(random.randint(*config["random"]["distractors"])):
+        for j in range(random.randint(*config["random"]["distractors"]) if dof_distractors else config["random"]["distractors"]):
             merge["distractor"].append(dict(
                 name=f'{random.choice(config["input"]["distractor"])["model"]}-{random.choice(targets["inc"])}-{random.choice(targets["azi"])}-{random.choice(targets["metallic"])}-{random.choice(targets["roughness"])}.png',
                 translation=[

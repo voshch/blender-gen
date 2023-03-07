@@ -187,12 +187,15 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
 
         annotation = annotations[conf["object"]["name"]]
 
-        annotation["bbox"] = [
+        trf_bbox = [
             trf[0, 0] * annotation["bbox"][0] + trf[0, 2],  # x1
             trf[1, 1] * annotation["bbox"][1] + trf[1, 2],  # x1
             trf[0, 0] * annotation["bbox"][2],  # x2
             trf[1, 1] * annotation["bbox"][3]  # y2
         ]
+
+        #
+        # trf_keypoints = (trf @ np.array(map(lambda x: x+[1], annotation["keypoints"])))[:2,:]
 
         coco_label.append({
             **annotation,
@@ -201,7 +204,9 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
             "category_id": 0,
             "segmentation": [],
             "iscrowd": 0,
-            "area": annotation["bbox"][2] * annotation["bbox"][3],
+            "bbox": trf_bbox,
+            "area": trf_bbox[2] * trf_bbox[3],
+            "keypoints": annotation["keypoints"],
             "num_keypoints": len(annotation["keypoints"])
         })
 
