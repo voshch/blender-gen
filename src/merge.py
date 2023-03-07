@@ -213,13 +213,6 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
 
         print(f"\r{i+1:0{digits}} / {total}", end="", flush=True)
 
-        if endpoint != None:
-            requests.post(f"{endpoint}/task/output", json=dict(
-                taskId=taskid,
-                progress=i+1,
-                total=total
-            )).send()
-
     print()
     util.saveCOCOlabel(coco_img, coco_label, camera_K, basepath)
 
