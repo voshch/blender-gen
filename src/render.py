@@ -20,7 +20,6 @@ from mathutils import Vector, Matrix
 import click
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
-
 import util
 
 log = util.Log()
@@ -87,7 +86,6 @@ class Object(Target):
         self.config["label"] = config["label"]
 
 
-
 class Distractor(Target):
     model_path = "/data/input/models/"
     type = "distractor"
@@ -101,7 +99,7 @@ def importPLYobject(filepath, conf_obj, scale):
     """import PLY object from path and scale it."""
 
     if conf_obj.model in bpy.data.objects:
-        
+
         return bpy.data.objects[conf_obj.model]
 
     bpy.ops.import_mesh.ply(filepath=filepath)
@@ -157,7 +155,7 @@ def importOBJobject(filepath, conf_obj, distractor=False):
     bsdf = nodes.get("Principled BSDF")
 
     texture = nodes.new(type="ShaderNodeTexImage")
-    #mat_links.new(texture.outputs['Color'], bsdf.inputs['Base Color'])
+    # mat_links.new(texture.outputs['Color'], bsdf.inputs['Base Color'])
 
     # save object material inputs
     config["metallic"].append(bsdf.inputs['Metallic'].default_value)
@@ -271,6 +269,7 @@ def get_sphere_coordinates(radius, inclination, azimuth):
     #  radius r, inclination θ, azimuth φ)
     #  inclination [0, pi]
     #  azimuth [0, 2pi]
+
     x = radius * math.sin(inclination) * math.cos(azimuth)
     y = radius * math.sin(inclination) * math.sin(azimuth)
     z = radius * math.cos(inclination)
@@ -279,12 +278,14 @@ def get_sphere_coordinates(radius, inclination, azimuth):
 
 def place_camera(camera, radius, inclination, azimuth):
     """sample x,y,z on sphere and place camera (looking at the origin)."""
+
     x, y, z = get_sphere_coordinates(radius, inclination, azimuth)
     camera.location.x = x
     camera.location.y = y
     camera.location.z = z
 
     bpy.context.view_layer.update()
+
     return camera
 
 
@@ -293,8 +294,8 @@ def setup_light(scene, inc, azi):
     #  place new light in cartesian coordinates
     x, y, z = get_sphere_coordinates(
         1,
-        inclination=inc,
-        azimuth=azi)
+        inclination=0,
+        azimuth=0)
     light_data = bpy.data.lights.new(name="my-light-data", type='POINT')
     light_data.color = (1., 1., 1.)
     light_data.energy = config["exposure"]
@@ -343,9 +344,11 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
     files = os.listdir(os.path.join(conf_obj.model_path, conf_obj.model))
 
     if "model.obj" in files:
-        obj = importOBJobject(os.path.join(conf_obj.model_path, conf_obj.model, "model.obj"), conf_obj)
+        obj = importOBJobject(os.path.join(
+            conf_obj.model_path, conf_obj.model, "model.obj"), conf_obj)
     elif "model.ply" in files:
-        obj = importPLYobject(os.path.join(conf_obj.model_path, conf_obj.model, "model.ply"), conf_obj, scale=config["model_scale"])
+        obj = importPLYobject(os.path.join(
+            conf_obj.model_path, conf_obj.model, "model.ply"), conf_obj, scale=config["model_scale"])
     else:
         raise FileNotFoundError()
 
@@ -354,13 +357,13 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
     mat = obj.active_material
     nodes = mat.node_tree.nodes
 
-    #texture_node = nodes.get("Image Texture")
-    #if texture_node:
+    # texture_node = nodes.get("Image Texture")
+    # if texture_node:
     #    bpy.data.images.load(os.path.join(
     #        conf_obj.texture_path, texture), check_existing=True)
     #    texture_node.image = bpy.data.images[texture]
 
-    obj.rotation_euler = (0, 0, 0)
+    obj.rotation_euler = (inc, azi, 0)
 
     mat.node_tree.nodes["Principled BSDF"].inputs['Metallic'].default_value = metallic
     mat.node_tree.nodes["Principled BSDF"].inputs['Roughness'].default_value = roughness
@@ -368,8 +371,8 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
     camera = place_camera(
         camera,
         radius=1,
-        inclination=inc,
-        azimuth=azi)
+        inclination=0,
+        azimuth=0)
 
     empty_obj = bpy.data.objects["empty"]
 
@@ -487,6 +490,7 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
             min_x * config["resolution_x"], min_y * config["resolution_y"],
             x_range * config["resolution_x"], y_range * config["resolution_y"]
         ],
+        "rotation": 0,
         "keypoints": kps,
     }
 
@@ -629,7 +633,7 @@ def render(camera, conf_obj, cat="unsorted"):
         bpy.context.scene.render.filepath = f'/data/intermediate/render/renders/{cat}/{conf_obj.model}-{inc}-{azi}-{metallic}-{roughness}.png'
         annotation = scene_cfg(camera, conf_obj,
                                inc, azi, metallic, roughness)
-        
+
         if cat == "object":
             annotation["caption"] = conf_obj.config["label"]
 
@@ -687,7 +691,6 @@ def main():
     camera, depth_file_output = setup()  # setup once
 
     all_annotations = {}
-
 
     for obj_conf in conf["targets"]["object"]:
         log.print(f'Rendering object {obj_conf["model"]}\n')
