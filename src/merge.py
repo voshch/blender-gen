@@ -27,11 +27,11 @@ storage = None
 
 def reset():
     global storage
-    storage = {
-        "backgrounds": {},
-        "object": {},
-        "distractor": {}
-    }
+    storage = dict(
+        backgrounds=dict(),
+        object=dict(),
+        distractor=dict()
+    )
 
 
 reset()
@@ -100,8 +100,10 @@ def layer(img: np.ndarray, overlay: np.ndarray):
 
 
 def merge(backgrounds, obj, distractor=[]):
-    im_bg = load("backgrounds", backgrounds["name"])
     im_obj = load("object", obj["name"])
+    im_bg = load("backgrounds", backgrounds["name"]) if backgrounds["name"] != None else np.zeros(
+        (cfg["resolution_y"], cfg["resolution_x"], *im_obj.shape[2:]))
+
     im_distractor = list(
         map(lambda x: load("distractor", x["name"]), distractor))
 
@@ -154,7 +156,7 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
 
     if endpoint != None:
         preview0, tf = merge(merges[-1]["backgrounds"], merges[-1]["object"])
-        requests.post(f"{endpoint}/datasetPreview/", data=dict(
+        requests.post(f"{endpoint}/task/datasetPreview/", json=dict(
             taskId=taskid,
             mode=mode_internal,
             image=create_preview(preview0)
@@ -172,7 +174,7 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
         cv.imwrite(os.path.join(basepath, f"images/{id}.png"), merged)
 
         if (endpoint != None) and (i < Parameters.preview_size - 1):
-            requests.post(f"{endpoint}/datasetPreview/", data=dict(
+            requests.post(f"{endpoint}/task/datasetPreview/", json=dict(
                 taskId=taskid,
                 mode=mode_internal,
                 image=create_preview(merged)
@@ -198,7 +200,6 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
         # trf_keypoints = (trf @ np.array(map(lambda x: x+[1], annotation["keypoints"])))[:2,:]
 
         coco_label.append({
-            **annotation,
             "id": id,  # overwrite
             "image_id": id,
             "category_id": 0,
@@ -213,7 +214,7 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
         print(f"\r{i+1:0{digits}} / {total}", end="", flush=True)
 
         if endpoint != None:
-            requests.post(f"{endpoint}/output", data=dict(
+            requests.post(f"{endpoint}/task/output", json=dict(
                 taskId=taskid,
                 progress=i+1,
                 total=total

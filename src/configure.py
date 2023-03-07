@@ -55,7 +55,7 @@ def main(mode_internal):
         isinstance(config["random"]["roughness"], list)
 
     each = (to_produce / (config["output"]["skew_angle:material"]
-            ** dof_mat)) ** (1/(dof_ang + dof_mat))
+            ** dof_mat)) ** (1/max(1, dof_ang + dof_mat))
 
     targets = dict(
         inc=max(1, cl(each)),
@@ -99,6 +99,9 @@ def main(mode_internal):
         backgrounds = config["input"]["backgrounds"]  # 360° environment not implemented yet
     else:
         backgrounds = os.listdir("/data/input/backgrounds/static")
+
+    if len(backgrounds) == 0:
+        backgrounds = [None]
 
     conf_merge = []
 
