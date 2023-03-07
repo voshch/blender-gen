@@ -411,86 +411,88 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
     labels.append(center[0])  # center x coordinate in image space
     labels.append(center[1])  # center y coordinate in image space
     # change order from blender to SSD paper
-    corners = orderCorners(obj.bound_box)
+    corners = util.orderCorners(obj.bound_box)
     if (config["use_fps_keypoints"]):
         corners = np.loadtxt("fps.txt")
 
     # compute bounding box either with 3D bbox or by going through vertices
     # loop through all vertices and transform to image coordinates
 
-    annotation = dict(
-        id=f'{conf_obj.model}-{inc}-{azi}-{metallic}-{roughness}.png'
-    )
+    annotation = dict()
 
-    if config["compute_bbox"] == 'tight':
-        min_x, max_x, min_y, max_y = 1, 0, 1, 0
-        vertices = obj.data.vertices
+    if conf_obj.type == "object":
 
-        S = []
-        highest = None
+        annotation = dict(
+            id=f'{conf_obj.model}-{inc}-{azi}-{metallic}-{roughness}.png'
+        )
 
-        for i, v in enumerate(vertices):
-            vec = np.array(project_by_object_utils(
-                camera, obj.matrix_world @ Vector(v.co)))
-            S.append(vec)
-            x = vec[0]
-            y = vec[1]
-            if x > max_x:
-                max_x = x
-            if x < min_x:
-                min_x = x
-                highest = i  # guaranteed element of convex hull
-            if y > max_y:
-                max_y = y
-            if y < min_y:
-                min_y = y
+        if config["compute_bbox"] == 'tight':
+            min_x, max_x, min_y, max_y = 1, 0, 1, 0
+            vertices = obj.data.vertices
 
-        hull = []  # gift wrapping algorithm for convex hull
-        startpoint = S[highest]
-        endpoint = None
+            S = []
+            highest = None
 
-        while True:
-            hull.append(startpoint)
-            endpoint = S[0]
-            for point in S:
-                if (startpoint[0] == endpoint[0]) or leftOf(startpoint, endpoint, point):
-                    endpoint = point
-            startpoint = endpoint
+            for i, v in enumerate(vertices):
+                vec = np.array(project_by_object_utils(
+                    camera, obj.matrix_world @ Vector(v.co)))
+                S.append(vec)
+                x = vec[0]
+                y = vec[1]
+                if x > max_x:
+                    max_x = x
+                if x < min_x:
+                    min_x = x
+                    highest = i  # guaranteed element of convex hull
+                if y > max_y:
+                    max_y = y
+                if y < min_y:
+                    min_y = y
 
-            if endpoint[0] == hull[0][0]:
-                break
+            hull = []  # gift wrapping algorithm for convex hull
+            startpoint = S[highest]
+            endpoint = None
 
-        annotation["hull"] = np.array(
-            hull * np.array([config["resolution_x"], config["resolution_y"]])).tolist()
+            while True:
+                hull.append(startpoint)
+                endpoint = S[0]
+                for point in S:
+                    if (startpoint[0] == endpoint[0]) or leftOf(startpoint, endpoint, point):
+                        endpoint = point
+                startpoint = endpoint
 
-    else:  # use blenders 3D bbox (simple but fast)
-        min_x = np.min([
-            labels[3], labels[5], labels[7], labels[9], labels[11],
-            labels[13], labels[15], labels[17]
-        ])
-        max_x = np.max([
-            labels[3], labels[5], labels[7], labels[9], labels[11],
-            labels[13], labels[15], labels[17]
-        ])
+                if endpoint[0] == hull[0][0]:
+                    break
 
-        min_y = np.min([
-            labels[4], labels[6], labels[8], labels[10], labels[12],
-            labels[14], labels[16], labels[18]
-        ])
-        max_y = np.max([
-            labels[4], labels[6], labels[8], labels[10], labels[12],
-            labels[14], labels[16], labels[18]
-        ])
+            annotation["hull"] = np.array(
+                hull * np.array([config["resolution_x"], config["resolution_y"]])).tolist()
 
-    x_range = max_x - min_x
-    y_range = max_y - min_y
+        else:  # use blenders 3D bbox (simple but fast)
+            min_x = np.min([
+                labels[3], labels[5], labels[7], labels[9], labels[11],
+                labels[13], labels[15], labels[17]
+            ])
+            max_x = np.max([
+                labels[3], labels[5], labels[7], labels[9], labels[11],
+                labels[13], labels[15], labels[17]
+            ])
 
-    annotation["bbox"] = [
-        min_x * config["resolution_x"], min_y * config["resolution_y"],
-        x_range * config["resolution_x"], y_range * config["resolution_y"]
-    ]
+            min_y = np.min([
+                labels[4], labels[6], labels[8], labels[10], labels[12],
+                labels[14], labels[16], labels[18]
+            ])
+            max_y = np.max([
+                labels[4], labels[6], labels[8], labels[10], labels[12],
+                labels[14], labels[16], labels[18]
+            ])
 
-    log.print(str(annotation))
+        x_range = max_x - min_x
+        y_range = max_y - min_y
+
+        annotation["bbox"] = [
+            min_x * config["resolution_x"], min_y * config["resolution_y"],
+            x_range * config["resolution_x"], y_range * config["resolution_y"]
+        ]
 
     return annotation
 
@@ -723,7 +725,9 @@ def main():
     with open("/data/intermediate/render/annotations.json", "w") as f:
         json.dump(all_annotations, f)
 
-    return True
+    os.makedirs("/data/intermediate/render/", exist_ok=True)
+    with open("/data/intermediate/render/render.lock", "w") as f:
+        f.flush()
 
 
 if __name__ == '__main__':
@@ -738,8 +742,9 @@ if __name__ == '__main__':
 
     try:
         main()
+
     except Exception as e:
-        log.err(e["message"] if hasattr(e, "message") else repr(e))
+        log.err(repr(e))
         raise e
 
     finally:
