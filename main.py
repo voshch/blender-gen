@@ -72,11 +72,12 @@ def main(mode, target, endpoint, taskid, output):
         f.write(output)
 
     if output == "file":
+        os.makedirs("/data/log/", exist_ok=True)
         # the easiest way to create or truncate
-        open("/data/output/stdout.log", "w").close()
-        log.stdout = open("/data/output/stdout.log", "a")
-        open("/data/output/stderr.log", "w").close()
-        log.stderr = open("/data/output/stderr.log", "a")
+        open("/data/log/stdout.txt", "w").close()
+        log.stdout = open("/data/log/stdout.txt", "a")
+        open("/data/log/stderr.txt", "w").close()
+        log.stderr = open("/data/log/stderr.txt", "a")
 
     try:
         if mode in ["train", "all"]:

@@ -734,8 +734,8 @@ if __name__ == '__main__':
         output = f.read()
 
     if output == "file":
-        log.stdout = open("/data/output/stdout.log", "a")
-        log.stderr = open("/data/output/stderr.log", "a")
+        log.stdout = open("/data/log/stdout.txt", "a")
+        log.stderr = open("/data/log/stderr.txt", "a")
     # won't print to terminal in any case
 
     try:
