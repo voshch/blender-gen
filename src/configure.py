@@ -100,6 +100,9 @@ def main(mode_internal):
     else:
         backgrounds = os.listdir("/data/input/backgrounds/static")
 
+    if len(backgrounds) == 0:
+        backgrounds = [None]
+
     conf_merge = []
 
     dof_pos_x = isinstance(config["random"]["x_pos"], list)
