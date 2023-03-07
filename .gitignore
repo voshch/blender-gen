@@ -3,6 +3,7 @@
 **/labels/*
 data/intermediate
 data/output
+data/log
 *.pyc
 /log.txt
 .vscode
