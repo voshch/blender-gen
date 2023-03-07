@@ -4,6 +4,7 @@
 # to install packages with PIP into the blender python:
 # e.g. /PATH/TO/BLENDER/python/bin$ /python3.7m -m pip install pandas
 
+import traceback
 
 import bpy
 import bpy_extras
@@ -20,9 +21,10 @@ import glob
 from mathutils import Vector, Matrix
 import click
 
-from .util import Log
-from .util import orderCorners
-log = Log()
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+import util
+
+log = util.Log()
 
 config = None
 with open("/data/intermediate/config/render.json") as f:
@@ -419,16 +421,18 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
     # loop through all vertices and transform to image coordinates
 
     annotation = dict()
+    vertices = obj.data.vertices
 
     if conf_obj.type == "object":
 
         annotation = dict(
-            id=f'{conf_obj.model}-{inc}-{azi}-{metallic}-{roughness}.png'
+            id=f'{conf_obj.model}-{inc}-{azi}-{metallic}-{roughness}.png',
+            bbox = [0,0,0,0],
+            hull = [],
         )
 
         if config["compute_bbox"] == 'tight':
             min_x, max_x, min_y, max_y = 1, 0, 1, 0
-            vertices = obj.data.vertices
 
             S = []
             highest = None
@@ -436,9 +440,12 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
             for i, v in enumerate(vertices):
                 vec = np.array(project_by_object_utils(
                     camera, obj.matrix_world @ Vector(v.co)))
+                
                 S.append(vec)
+
                 x = vec[0]
                 y = vec[1]
+
                 if x > max_x:
                     max_x = x
                 if x < min_x:
@@ -468,6 +475,14 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
                 hull * np.array([config["resolution_x"], config["resolution_y"]])).tolist()
 
         else:  # use blenders 3D bbox (simple but fast)
+
+            for i, v in enumerate(vertices):
+                vec = np.array(project_by_object_utils(
+                    camera, obj.matrix_world @ Vector(v.co)))
+
+                labels.append(vec[0])
+                labels.append(vec[1])
+
             min_x = np.min([
                 labels[3], labels[5], labels[7], labels[9], labels[11],
                 labels[13], labels[15], labels[17]
@@ -744,6 +759,7 @@ if __name__ == '__main__':
         main()
 
     except Exception as e:
+        log.err(traceback.format_exc())
         log.err(repr(e))
         raise e
 
