@@ -3,23 +3,18 @@
     "input":{
         "object": [
             {
-                "model": "Suzanne",
-                "label": "Suzanne"
+                "model": "TV",
+                "label": "Object"
             }
         ],
-
-        "distractor": [
-            {
-                "model": "Cube"
-            }
-        ],
+        "distractor": [],
         "environment":[]
 
     },
 
     "output":{
         "size_train": 100,
-        "size_val": 10,
+        "size_val": 1,
         "just_merge": 0.95,
         "skew_angle:material": 4
     },
@@ -33,12 +28,14 @@
             "clip_end": 50
         },
 
-        "resolution_x": 640,
-        "resolution_y": 360,
+        "distance": 1,
 
-        "model_scale": 0.5E-3,
+        "resolution_x": 1920,
+        "resolution_y": 1080,
+
+        "model_scale": 0.25,
         "exposure": 40,
-        "compute_bbox": "tight",
+        "compute_bbox": "fast",
         "use_fps_keypoints": false,
 
         "use_cycles": true,
@@ -49,14 +46,14 @@
     },
     
     "random":{
-        "distractors": [1,2],
+        "distractors": 0,
 
-        "x_pos": [-0.1, 0.1],
-        "y_pos": [-0.1, 0.1],
-        "z_pos": [0, 0.5],
+        "x_pos": 0,
+        "y_pos": 0,
+        "z_pos": 0,
 
-        "inc":[0, 1.5708],
-        "azi":[0, 1.5708],
+        "inc":-1.59,
+        "azi":0,
 
         "metallic": 0,
         "roughness": 1

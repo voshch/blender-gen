@@ -340,6 +340,17 @@ def add_shader_on_world():
     bpy.data.worlds['World'].node_tree.links.new(
         emission_node.outputs['Emission'], world_node.inputs['Surface'])
 
+def euler_to_mat(roll, pitch, yaw):
+
+    #per https://en.wikipedia.org/wiki/Euler_angles#Rotation_matrix XZY
+
+    c1, c2, c3 = np.cos([roll, pitch, yaw])
+    s1, s2, s3 = np.sin([roll, pitch, yaw])
+    return np.array([
+        [c2*c3,             -s2,    c2*s3           ],
+        [s1*s3 + c1*c3*s2,  c1*c2,  c1*s2*s3 - c3*s1],
+        [c3*s1*s2 - c1*s3,  c2*s1,  c1*c3 + s1*s2*s3]
+    ])
 
 def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
     """configure the blender scene with specific config"""
@@ -409,20 +420,18 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
     center = project_by_object_utils(camera, obj.location)  # object 2D center
 
     class_ = conf_obj.model  # class label for object
-    labels = [class_]
-    labels.append(center[0])  # center x coordinate in image space
-    labels.append(center[1])  # center y coordinate in image space
     # change order from blender to SSD paper
     corners = util.orderCorners(obj.bound_box)
-    if (config["use_fps_keypoints"]):
-        corners = np.loadtxt("fps.txt")
+    corners = np.array([np.array(project_by_object_utils(camera, obj.matrix_world @ Vector(corner))) for corner in corners])
+
+    vertices = obj.data.vertices
+    vertices = np.array([np.array(project_by_object_utils(camera, obj.matrix_world @ Vector(v.co))) for v in vertices])
 
     # compute bounding box either with 3D bbox or by going through vertices
     # loop through all vertices and transform to image coordinates
 
     annotation = dict()
-    vertices = obj.data.vertices
-
+    
     if conf_obj.type == "object":
 
         annotation = dict(
@@ -431,15 +440,17 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
             hull = [],
         )
 
-        if config["compute_bbox"] == 'tight':
-            min_x, max_x, min_y, max_y = 1, 0, 1, 0
+        
+        
+        min_x, max_x, min_y, max_y = 1, 0, 1, 0
 
+        #bbox and segmentation
+        if config["compute_bbox"] == 'tight':
+            
             S = []
             highest = None
 
-            for i, v in enumerate(vertices):
-                vec = np.array(project_by_object_utils(
-                    camera, obj.matrix_world @ Vector(v.co)))
+            for i, vec in enumerate(vertices):
                 
                 S.append(vec)
 
@@ -476,12 +487,13 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
 
         else:  # use blenders 3D bbox (simple but fast)
 
-            for i, v in enumerate(vertices):
-                vec = np.array(project_by_object_utils(
-                    camera, obj.matrix_world @ Vector(v.co)))
+            labels = [class_]
+            labels.append(center[0])  # center x coordinate in image space
+            labels.append(center[1])  # center y coordinate in image space
 
-                labels.append(vec[0])
-                labels.append(vec[1])
+            for corner in corners:
+                labels.append(corner[0])
+                labels.append(corner[1])
 
             min_x = np.min([
                 labels[3], labels[5], labels[7], labels[9], labels[11],
@@ -508,6 +520,49 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
             min_x * config["resolution_x"], min_y * config["resolution_y"],
             x_range * config["resolution_x"], y_range * config["resolution_y"]
         ]
+
+
+        #rotated bbox
+
+        if True:
+
+            center = corners.mean(axis = 0)
+
+            up = euler_to_mat(*obj.rotation_euler) @ np.array([0,1,0])
+            up = np.array(project_by_object_utils(camera, obj.matrix_world @ Vector(up)))
+            up /= (np.linalg.norm(up) or 1)
+
+            left = np.array([up[1], -up[0]])
+            left /= (np.linalg.norm(left) or 1)
+            
+            min_x, max_x = 0, 0
+            min_y, max_y = 0, 0
+            for vertex in vertices:
+                x = np.inner(vertex, left) # = |vertex| * cos(a) since left already normalized
+                y = np.inner(vertex, up)
+
+                min_x = min(min_x, x)
+                max_x = max(max_x, x)
+                min_y = min(min_y, y)
+                max_y = max(max_y, y)
+
+
+            log.print(f"number of vertices {len(vertices)}")
+            log.print(f"center is {center}")
+            log.print(f"rotation is {euler_to_mat(*obj.rotation_euler)}")
+            log.print(f"up is {up}")
+            log.print(f"left is {left}")
+            log.print(f"with corners {[min_x, max_x, min_y, max_y]}")
+
+            scale = np.array([config["resolution_x"], config["resolution_y"]])
+
+            annotation["rotated_bbox"] = [
+                (scale * (center + max_x * up + max_y * left)).tolist(),
+                (scale * (center + min_x * up + max_y * left)).tolist(),
+                (scale * (center + min_x * up + min_y * left)).tolist(),
+                (scale * (center + max_x * up + min_y * left)).tolist(),
+            ]
+
 
     return annotation
 
@@ -650,7 +705,7 @@ def render(camera, conf_obj, cat="unsorted"):
                                inc, azi, metallic, roughness)
 
         if cat == "object":
-            annotation["caption"] = conf_obj.config["label"]
+            annotation["label"] = conf_obj.config["label"]
 
         annotations.append(annotation)
 

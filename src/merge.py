@@ -150,6 +150,7 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
     basepath = os.path.join("/data/output/", mode_internal)
 
     os.makedirs(os.path.join(basepath, "images"), exist_ok=True)
+    os.makedirs(os.path.join(basepath, "dota"), exist_ok=True)
 
     coco_img = []
     coco_label = []
@@ -202,9 +203,11 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
         #
         trf_segmentation = [(trf @ np.array([*vec, 1])).tolist() for vec in annotation["hull"]]
 
+        #coco
         coco_label.append({
             "id": id,  # overwrite
             "image_id": id,
+            "caption": annotation["label"],
             "category_id": 0,
             "segmentation": [[coord for vec in trf_segmentation for coord in vec]], #flat
             "iscrowd": 0,
@@ -213,6 +216,12 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
             "keypoints": [],
             "num_keypoints": 0
         })
+
+
+        trf_rotated_bbox = [(trf @ np.array([*vec, 1])).tolist() for vec in annotation["rotated_bbox"]]
+
+        with open(os.path.join(basepath, f"dota/{id}.txt"), "w") as f:
+            f.write(f"{', '.join([str(coord) for vec in trf_rotated_bbox for coord in vec])}, {annotation['label']}, 0\n")
 
         print(f"\r{i+1:0{digits}} / {total}", end="", flush=True)
 
