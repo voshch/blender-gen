@@ -131,7 +131,7 @@ def create_preview(img):
 ))
 @click.option("--endpoint", default=None, help="http endpoint for sending current progress")
 @click.option("--taskID", default="", help="task ID")
-@click.option("--coco-image-root", default="/data/output/", help="http endpoint for sending current progress")
+@click.option("--coco-image-root", default="./", help="http endpoint for sending current progress")
 @click.option("--mode_internal")
 def main(endpoint, taskid, coco_image_root, mode_internal):
 
@@ -185,7 +185,7 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
 
         coco_img.append({
             "id": id,
-            "file_name": os.path.join(coco_image_root, mode_internal, f"images/{id}.png"),
+            "file_name": os.path.join(coco_image_root, f"images/{id}.png"),
             "height": cfg["resolution_x"],
             "width": cfg["resolution_y"],
         })
