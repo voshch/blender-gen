@@ -132,6 +132,8 @@ def create_preview(img):
 @click.option("--mode_internal")
 def main(endpoint, taskid, coco_image_root, mode_internal):
 
+    print(endpoint)
+
     merges = None
     with open("/data/intermediate/config/merge.json") as f:
         merges = json.load(f)
@@ -156,7 +158,7 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
 
     if endpoint != None:
         preview0, tf = merge(merges[-1]["backgrounds"], merges[-1]["object"])
-        requests.post(f"{endpoint}/task/datasetPreview/", json=dict(
+        requests.post(f"{endpoint}/datasetPreview/", json=dict(
             taskId=taskid,
             mode=mode_internal,
             image=create_preview(preview0)
@@ -174,7 +176,7 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
         cv.imwrite(os.path.join(basepath, f"images/{id}.png"), merged)
 
         if (endpoint != None) and (i < Parameters.preview_size - 1):
-            requests.post(f"{endpoint}/task/datasetPreview/", json=dict(
+            requests.post(f"{endpoint}/datasetPreview/", json=dict(
                 taskId=taskid,
                 mode=mode_internal,
                 image=create_preview(merged)
