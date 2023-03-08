@@ -135,8 +135,6 @@ def create_preview(img):
 @click.option("--mode_internal")
 def main(endpoint, taskid, coco_image_root, mode_internal):
 
-    print(endpoint)
-
     merges = None
     with open("/data/intermediate/config/merge.json") as f:
         merges = json.load(f)
