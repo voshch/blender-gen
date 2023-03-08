@@ -16,6 +16,7 @@ class Parameters:
     preview_width = 480
     preview_height = 360
     preview_ext = ".jpg"
+    preview_MIME = "image/jpg"
 
 
 cfg = None
@@ -119,7 +120,9 @@ def merge(backgrounds, obj, distractor=[]):
 
 
 def create_preview(img):
-    return base64.b64encode(cv.imencode(Parameters.preview_ext, cv.resize(img, (Parameters.preview_width, Parameters.preview_height), cv.INTER_AREA))[1]).decode("utf-8")
+    imgdata = cv.imencode(Parameters.preview_ext, cv.resize(img, (Parameters.preview_width, Parameters.preview_height), cv.INTER_AREA))[1]
+    imgdata_enc = base64.b64encode(imgdata).decode("utf-8")
+    return f"data:{Parameters.preview_MIME};base64,{imgdata_enc}"
 
 
 @click.command(context_settings=dict(
