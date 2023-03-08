@@ -16,6 +16,7 @@ class Parameters:
     preview_width = 480
     preview_height = 360
     preview_ext = ".jpg"
+    preview_MIME = "image/jpg"
 
 
 cfg = None
@@ -119,7 +120,9 @@ def merge(backgrounds, obj, distractor=[]):
 
 
 def create_preview(img):
-    return base64.b64encode(cv.imencode(Parameters.preview_ext, cv.resize(img, (Parameters.preview_width, Parameters.preview_height), cv.INTER_AREA))[1]).decode("utf-8")
+    imgdata = cv.imencode(Parameters.preview_ext, cv.resize(img, (Parameters.preview_width, Parameters.preview_height), cv.INTER_AREA))[1]
+    imgdata_enc = base64.b64encode(imgdata).decode("utf-8")
+    return f"data:{Parameters.preview_MIME};base64,{imgdata_enc}"
 
 
 @click.command(context_settings=dict(
@@ -128,7 +131,7 @@ def create_preview(img):
 ))
 @click.option("--endpoint", default=None, help="http endpoint for sending current progress")
 @click.option("--taskID", default="", help="task ID")
-@click.option("--coco-image-root", default="/data/output/", help="http endpoint for sending current progress")
+@click.option("--coco-image-root", default="./", help="http endpoint for sending current progress")
 @click.option("--mode_internal")
 def main(endpoint, taskid, coco_image_root, mode_internal):
 
@@ -184,7 +187,7 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
 
         coco_img.append({
             "id": id,
-            "file_name": os.path.join(coco_image_root, mode_internal, f"images/{id}.png"),
+            "file_name": os.path.join(coco_image_root, f"images/{id}.png"),
             "height": cfg["resolution_x"],
             "width": cfg["resolution_y"],
         })
@@ -199,18 +202,18 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
         ]
 
         #
-        # trf_keypoints = (trf @ np.array(map(lambda x: x+[1], annotation["keypoints"])))[:2,:]
+        trf_segmentation = [(trf @ np.array([*vec, 1])).tolist() for vec in annotation["hull"]]
 
         coco_label.append({
             "id": id,  # overwrite
             "image_id": id,
             "category_id": 0,
-            "segmentation": [],
+            "segmentation": [[coord for vec in trf_segmentation for coord in vec]], #flat
             "iscrowd": 0,
             "bbox": trf_bbox,
             "area": trf_bbox[2] * trf_bbox[3],
-            "keypoints": annotation["keypoints"],
-            "num_keypoints": len(annotation["keypoints"])
+            "keypoints": [],
+            "num_keypoints": 0
         })
 
         print(f"\r{i+1:0{digits}} / {total}", end="", flush=True)

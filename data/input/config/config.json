@@ -38,7 +38,7 @@
 
         "model_scale": 0.5E-3,
         "exposure": 40,
-        "compute_bbox": "fast",
+        "compute_bbox": "tight",
         "use_fps_keypoints": false,
 
         "use_cycles": true,

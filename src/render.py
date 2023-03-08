@@ -4,6 +4,8 @@
 # to install packages with PIP into the blender python:
 # e.g. /PATH/TO/BLENDER/python/bin$ /python3.7m -m pip install pandas
 
+import traceback
+
 import bpy
 import bpy_extras
 import os
@@ -162,6 +164,12 @@ def importOBJobject(filepath, conf_obj, distractor=False):
     config["roughness"].append(bsdf.inputs['Roughness'].default_value)
 
     return obj
+
+
+def leftOf(l1, l2, p):  # https://math.stackexchange.com/questions/274712/calculate-on-which-side-of-a-straight-line-is-a-given-point-located
+    l1l2 = l2 - l1
+    l1p = p - l1
+    return l1l2[1] * l1p[0] - l1l2[0] * l1p[1] > 0
 
 
 def project_by_object_utils(cam, point):
@@ -409,90 +417,97 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
     if (config["use_fps_keypoints"]):
         corners = np.loadtxt("fps.txt")
 
-    kps = []
-    for corner in corners:
-        p = obj.matrix_world @ Vector(corner)  # object space to world space
-        p = project_by_object_utils(camera, p)  # world space to image space
-        labels.append(p[0])
-        labels.append(p[1])
-        if (p[0] < 0 or p[0] > 1 or p[1] < 0 or p[1] > 1):
-            v = 1  # v=1: labeled but not visible
-        else:
-            v = 2  # v=2: labeled and visible
-        # 8 bounding box keypoints
-        kps += [p[0] * config["resolution_x"],
-                p[1] * config["resolution_y"], v]
-
-    # P=[RT] ground truth pose of the object in camera coordinates???
-    P = camera.matrix_world.inverted() @ obj.matrix_world
-
     # compute bounding box either with 3D bbox or by going through vertices
     # loop through all vertices and transform to image coordinates
-    if config["compute_bbox"] == 'tight':
-        min_x, max_x, min_y, max_y = 1, 0, 1, 0
-        vertices = obj.data.vertices
-        for v in vertices:
-            vec = project_by_object_utils(camera,
-                                          obj.matrix_world @ Vector(v.co))
-            x = vec[0]
-            y = vec[1]
-            if x > max_x:
-                max_x = x
-            if x < min_x:
-                min_x = x
-            if y > max_y:
-                max_y = y
-            if y < min_y:
-                min_y = y
-    else:  # use blenders 3D bbox (simple but fast)
-        min_x = np.min([
-            labels[3], labels[5], labels[7], labels[9], labels[11],
-            labels[13], labels[15], labels[17]
-        ])
-        max_x = np.max([
-            labels[3], labels[5], labels[7], labels[9], labels[11],
-            labels[13], labels[15], labels[17]
-        ])
 
-        min_y = np.min([
-            labels[4], labels[6], labels[8], labels[10], labels[12],
-            labels[14], labels[16], labels[18]
-        ])
-        max_y = np.max([
-            labels[4], labels[6], labels[8], labels[10], labels[12],
-            labels[14], labels[16], labels[18]
-        ])
+    annotation = dict()
+    vertices = obj.data.vertices
 
-    # save labels in txt file (deprecated)
-    x_range = max_x - min_x
-    y_range = max_y - min_y
-    labels.append(x_range)
-    labels.append(y_range)
+    if conf_obj.type == "object":
 
-    # fix center point
-    labels[1] = (max_x + min_x) / 2
-    labels[2] = (max_y + min_y) / 2
+        annotation = dict(
+            id=f'{conf_obj.model}-{inc}-{azi}-{metallic}-{roughness}.png',
+            bbox = [0,0,0,0],
+            hull = [],
+        )
 
-    #  keypoints (kps) for 6D Pose Estimation
-    # kps = [cfg.resolution_x * (max_x + min_x) / 2, cfg.resolution_y * (max_y + min_y) / 2, 2] +kps
+        if config["compute_bbox"] == 'tight':
+            min_x, max_x, min_y, max_y = 1, 0, 1, 0
 
-    if (config["use_fps_keypoints"] == False):
-        kps = [config["resolution_x"] * center[0], config["resolution_y"]
-               * center[1], 2] + kps  # center is the 1st keypoint
+            S = []
+            highest = None
 
-        # save COCO label
+            for i, v in enumerate(vertices):
+                vec = np.array(project_by_object_utils(
+                    camera, obj.matrix_world @ Vector(v.co)))
+                
+                S.append(vec)
 
-    id = f'{conf_obj.model}-{inc}-{azi}-{metallic}-{roughness}.png'
+                x = vec[0]
+                y = vec[1]
 
-    annotation = {
-        "id": id,
-        "bbox": [
+                if x > max_x:
+                    max_x = x
+                if x < min_x:
+                    min_x = x
+                    highest = i  # guaranteed element of convex hull
+                if y > max_y:
+                    max_y = y
+                if y < min_y:
+                    min_y = y
+
+            hull = []  # gift wrapping algorithm for convex hull
+            startpoint = S[highest]
+            endpoint = None
+
+            while True:
+                hull.append(startpoint)
+                endpoint = S[0]
+                for point in S:
+                    if (startpoint[0] == endpoint[0]) or leftOf(startpoint, endpoint, point):
+                        endpoint = point
+                startpoint = endpoint
+
+                if endpoint[0] == hull[0][0]:
+                    break
+
+            annotation["hull"] = np.array(
+                hull * np.array([config["resolution_x"], config["resolution_y"]])).tolist()
+
+        else:  # use blenders 3D bbox (simple but fast)
+
+            for i, v in enumerate(vertices):
+                vec = np.array(project_by_object_utils(
+                    camera, obj.matrix_world @ Vector(v.co)))
+
+                labels.append(vec[0])
+                labels.append(vec[1])
+
+            min_x = np.min([
+                labels[3], labels[5], labels[7], labels[9], labels[11],
+                labels[13], labels[15], labels[17]
+            ])
+            max_x = np.max([
+                labels[3], labels[5], labels[7], labels[9], labels[11],
+                labels[13], labels[15], labels[17]
+            ])
+
+            min_y = np.min([
+                labels[4], labels[6], labels[8], labels[10], labels[12],
+                labels[14], labels[16], labels[18]
+            ])
+            max_y = np.max([
+                labels[4], labels[6], labels[8], labels[10], labels[12],
+                labels[14], labels[16], labels[18]
+            ])
+
+        x_range = max_x - min_x
+        y_range = max_y - min_y
+
+        annotation["bbox"] = [
             min_x * config["resolution_x"], min_y * config["resolution_y"],
             x_range * config["resolution_x"], y_range * config["resolution_y"]
-        ],
-        "rotation": 0,
-        "keypoints": kps,
-    }
+        ]
 
     return annotation
 
@@ -725,7 +740,9 @@ def main():
     with open("/data/intermediate/render/annotations.json", "w") as f:
         json.dump(all_annotations, f)
 
-    return True
+    os.makedirs("/data/intermediate/render/", exist_ok=True)
+    with open("/data/intermediate/render/render.lock", "w") as f:
+        f.flush()
 
 
 if __name__ == '__main__':
@@ -740,8 +757,10 @@ if __name__ == '__main__':
 
     try:
         main()
+
     except Exception as e:
-        log.err(e["message"] if hasattr(e, "message") else repr(e))
+        log.err(traceback.format_exc())
+        log.err(repr(e))
         raise e
 
     finally:
