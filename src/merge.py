@@ -206,7 +206,7 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
             "id": id,  # overwrite
             "image_id": id,
             "category_id": 0,
-            "segmentation": trf_segmentation,
+            "segmentation": [[coord for vec in trf_segmentation for coord in vec]], #flat
             "iscrowd": 0,
             "bbox": trf_bbox,
             "area": trf_bbox[2] * trf_bbox[3],
