@@ -20,6 +20,7 @@ import shutil
 import glob
 from mathutils import Vector, Matrix
 import click
+import datetime
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import util
@@ -698,7 +699,7 @@ def render(camera, conf_obj):
     #  render loop
     for inc, azi, metallic, roughness in conf_obj.configs():
 
-        log.print(f"\t{inc} - {azi} - {metallic} - {roughness}\n")
+        start = datetime.datetime.now()
 
         bpy.context.scene.render.filepath = f'/data/intermediate/render/renders/{conf_obj.type}/{conf_obj.model}-{inc}-{azi}-{metallic}-{roughness}.png'
         annotation = scene_cfg(camera, conf_obj,
@@ -721,6 +722,8 @@ def render(camera, conf_obj):
 
         for block in bpy.data.lights:  # delete lights
             bpy.data.lights.remove(block)
+
+        log.print(f"\t{inc} - {azi} - {metallic} - {roughness} [in {datetime.datetime.now()-start}]")
 
     bpy.ops.object.select_all(action='DESELECT')
     bpy.data.objects[conf_obj.model].select_set(True)
@@ -745,6 +748,8 @@ def main():
     # load targets
 
     os.makedirs("/data/intermediate/render/", exist_ok=True)
+    os.makedirs("/data/intermediate/render/renders/object", exist_ok=True)
+    os.makedirs("/data/intermediate/render/renders/distractor", exist_ok=True)
 
     conf = {}
     with open("/data/intermediate/config/targets.json") as f:
@@ -809,7 +814,6 @@ def main():
         filepath="/data/intermediate/render/scene.blend", check_existing=False)
 
 
-    os.makedirs("/data/intermediate/render/", exist_ok=True)
     with open("/data/intermediate/render/render.lock", "w") as f:
         f.flush()
 
