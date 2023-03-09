@@ -3,11 +3,15 @@
     "input":{
         "object": [
             {
-                "model": "TV",
-                "label": "Object"
+                "model": "Suzanne",
+                "label": "Suzanne"
             }
         ],
-        "distractor": [],
+        "distractor": [
+            {
+                "model": "Cube"
+            }
+        ],
         "environment":[]
 
     },
@@ -35,7 +39,7 @@
 
         "model_scale": 0.25,
         "exposure": 40,
-        "compute_bbox": "fast",
+        "compute_bbox": "tight",
         "use_fps_keypoints": false,
 
         "use_cycles": true,
@@ -46,7 +50,7 @@
     },
     
     "random":{
-        "distractors": 0,
+        "distractors": 1,
 
         "x_pos": 0,
         "y_pos": 0,

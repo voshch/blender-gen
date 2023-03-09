@@ -432,7 +432,7 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
 
     annotation = dict()
     
-    if conf_obj.type == "object":
+    if conf_obj.type in ["object", "distractor"]: #always true right now
 
         annotation = dict(
             id=f'{conf_obj.model}-{inc}-{azi}-{metallic}-{roughness}.png',
@@ -547,12 +547,12 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
                 max_y = max(max_y, y)
 
 
-            log.print(f"number of vertices {len(vertices)}")
-            log.print(f"center is {center}")
-            log.print(f"rotation is {euler_to_mat(*obj.rotation_euler)}")
-            log.print(f"up is {up}")
-            log.print(f"left is {left}")
-            log.print(f"with corners {[min_x, max_x, min_y, max_y]}")
+            # log.print(f"number of vertices {len(vertices)}")
+            # log.print(f"center is {center}")
+            # log.print(f"rotation is {euler_to_mat(*obj.rotation_euler)}")
+            # log.print(f"up is {up}")
+            # log.print(f"left is {left}")
+            # log.print(f"with corners {[min_x, max_x, min_y, max_y]}")
 
             scale = np.array([config["resolution_x"], config["resolution_y"]])
 
@@ -688,7 +688,7 @@ def render_cfg():
     bpy.context.scene.render.resolution_y = config["resolution_y"]
 
 
-def render(camera, conf_obj, cat="unsorted"):
+def render(camera, conf_obj):
     """main loop to render images"""
 
     render_cfg()  # setup render config once
@@ -700,11 +700,11 @@ def render(camera, conf_obj, cat="unsorted"):
 
         log.print(f"\t{inc} - {azi} - {metallic} - {roughness}\n")
 
-        bpy.context.scene.render.filepath = f'/data/intermediate/render/renders/{cat}/{conf_obj.model}-{inc}-{azi}-{metallic}-{roughness}.png'
+        bpy.context.scene.render.filepath = f'/data/intermediate/render/renders/{conf_obj.type}/{conf_obj.model}-{inc}-{azi}-{metallic}-{roughness}.png'
         annotation = scene_cfg(camera, conf_obj,
                                inc, azi, metallic, roughness)
 
-        if cat == "object":
+        if conf_obj.type == "object":
             annotation["label"] = conf_obj.config["label"]
 
         annotations.append(annotation)
@@ -760,23 +760,39 @@ def main():
 
     camera, depth_file_output = setup()  # setup once
 
-    all_annotations = {}
+    #render objects
+
+    object_annotations = {}
 
     for obj_conf in conf["targets"]["object"]:
         log.print(f'Rendering object {obj_conf["model"]}\n')
         obj = Object(obj_conf)
 
-        annotations = render(camera, obj, cat="object")  # render loop
+        annotations = render(camera, obj)  # render loop
         for annotation in annotations:
-            all_annotations[annotation["id"]] = annotation
+            object_annotations[annotation["id"]] = annotation
 
         del obj
+
+    with open("/data/intermediate/render/renders/object/annotations.json", "w") as f:
+        json.dump(object_annotations, f)
+
+    distractor_annotations = {}
+
+
+    #render distractors
 
     for dist_conf in conf["targets"]["distractor"]:
         log.print(f'Rendering distractor {dist_conf["model"]}\n')
         obj = Distractor(dist_conf)
-        render(camera, obj, cat="distractor")  # render loop
+
+        annotations = render(camera, obj)  # render loop
+        for annotation in annotations:
+            distractor_annotations[annotation["id"]] = annotation
         del obj
+
+    with open("/data/intermediate/render/renders/distractor/annotations.json", "w") as f:
+        json.dump(distractor_annotations, f)
 
     # copy static backgrounds
     os.makedirs("/data/intermediate/backgrounds/", exist_ok=True)
@@ -792,8 +808,6 @@ def main():
     bpy.ops.wm.save_as_mainfile(
         filepath="/data/intermediate/render/scene.blend", check_existing=False)
 
-    with open("/data/intermediate/render/annotations.json", "w") as f:
-        json.dump(all_annotations, f)
 
     os.makedirs("/data/intermediate/render/", exist_ok=True)
     with open("/data/intermediate/render/render.lock", "w") as f:
