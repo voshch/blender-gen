@@ -55,7 +55,11 @@ class Target:
             config["roughness"] = []
         config["roughness"] = config["roughness"] or [1]
 
+        if "scale" not in config:
+            config["scale"] = 1
+
         self.model = config["model"]
+        self.scale = config["scale"]
 
         self.config = config
 
@@ -97,7 +101,7 @@ class Distractor(Target):
 # print = _print
 
 
-def importPLYobject(filepath, conf_obj, scale):
+def importPLYobject(filepath, conf_obj):
     """import PLY object from path and scale it."""
 
     if conf_obj.model in bpy.data.objects:
@@ -107,7 +111,7 @@ def importPLYobject(filepath, conf_obj, scale):
     bpy.ops.import_mesh.ply(filepath=filepath)
     obj = bpy.context.selected_objects[0]
     obj.name = conf_obj.model
-    obj.scale = (scale, scale, scale)  # scale PLY object
+    obj.scale = (conf_obj.scale, conf_obj.scale, conf_obj.scale)  # scale PLY object
 
     # add vertex color to PLY object
     obj.select_set(True)
@@ -130,7 +134,7 @@ def importPLYobject(filepath, conf_obj, scale):
     return obj
 
 
-def importOBJobject(filepath, conf_obj, scale):
+def importOBJobject(filepath, conf_obj):
     """import an *.OBJ file to Blender"""
 
     if conf_obj.model in bpy.data.objects:
@@ -151,7 +155,7 @@ def importOBJobject(filepath, conf_obj, scale):
     obj = bpy.context.selected_objects[0]
     obj.name = conf_obj.model
 
-    obj.scale = (scale, scale, scale)
+    obj.scale = (conf_obj.scale, conf_obj.scale, conf_obj.scale)
 
     mat = obj.active_material
     mat_links = mat.node_tree.links
@@ -167,7 +171,7 @@ def importOBJobject(filepath, conf_obj, scale):
 
     return obj
 
-def importFBXObject(filepath, conf_obj, scale):
+def importFBXObject(filepath, conf_obj):
     """import an *.OBJ file to Blender"""
 
     if conf_obj.model in bpy.data.objects:
@@ -185,11 +189,10 @@ def importFBXObject(filepath, conf_obj, scale):
     # bpy.ops.object.join(obj_objects)  # join multiple elements into one eleme
 
     # get BSDF material node
-    obj = bpy.context.selected_objects[0].parent
+    obj = bpy.context.selected_objects[0]
     obj.name = conf_obj.model
 
-    log.print(f"FBX scale {scale}")
-    obj.scale = (scale, scale, scale)
+    obj.scale = (conf_obj.scale, conf_obj.scale, conf_obj.scale)
 
     mat = obj.active_material
     mat_links = mat.node_tree.links
@@ -341,7 +344,7 @@ def setup_light(scene, inc, azi):
     """create a random point light source."""
     #  place new light in cartesian coordinates
     x, y, z = get_sphere_coordinates(
-        config["distance"],
+        1,
         inclination=0,
         azimuth=0)
     light_data = bpy.data.lights.new(name="my-light-data", type='POINT')
@@ -404,13 +407,13 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
 
     if "model.obj" in files:
         obj = importOBJobject(os.path.join(
-            conf_obj.model_path, conf_obj.model, "model.obj"), conf_obj, scale=config["model_scale"])
+            conf_obj.model_path, conf_obj.model, "model.obj"), conf_obj)
     elif "model.ply" in files:
         obj = importPLYobject(os.path.join(
-            conf_obj.model_path, conf_obj.model, "model.ply"), conf_obj, scale=config["model_scale"])
+            conf_obj.model_path, conf_obj.model, "model.ply"), conf_obj)
     elif "model.fbx" in files:
         obj = importFBXObject(os.path.join(
-            conf_obj.model_path, conf_obj.model, "model.fbx"), conf_obj, scale=config["model_scale"])
+            conf_obj.model_path, conf_obj.model, "model.fbx"), conf_obj)
     else:
         raise FileNotFoundError()
 
@@ -432,7 +435,7 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
 
     camera = place_camera(
         camera,
-        radius=config["distance"],
+        radius=1,
         inclination=0,
         azimuth=0)
 
@@ -510,7 +513,7 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
                 if y < min_y:
                     min_y = y
 
-            hull = []  # gift wrapping algorithm for convex hull
+            hull = np.array([])  # gift wrapping algorithm for convex hull
             startpoint = S[highest]
             endpoint = None
 
@@ -744,7 +747,7 @@ def render(camera, conf_obj, cat="unsorted"):
     #  render loop
     for inc, azi, metallic, roughness in conf_obj.configs():
 
-        log.print(f"\t{inc} - {azi} - {metallic} - {roughness}\n")
+        log.print(f"\t{inc} - {azi} - {metallic} - {roughness}")
 
         bpy.context.scene.render.filepath = f'/data/intermediate/render/renders/{cat}/{conf_obj.model}-{inc}-{azi}-{metallic}-{roughness}.png'
         annotation = scene_cfg(camera, conf_obj,

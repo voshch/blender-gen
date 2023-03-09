@@ -3,24 +3,42 @@
     "input":{
         "object": [
             {
-                "model": "Suzanne",
-                "label": "Suzanne"
+                "model": "Linh",
+                "label": "Linh",
+                "scale": 0.6
             }
         ],
 
         "distractor": [
             {
-                "model": "Cube"
+                "model": "Cube",
+                "scale": 1
             }
         ],
-        "environment":[]
-
+        "environment":[],
+        "backgrounds":[
+            "pexels-alexander-isreb-1797428.png",
+            "pexels-just-a-couple-photos-3421636.png",
+            "pexels-magda-ehlers-2569842.png",
+            "pexels-pixabay-236705.png",
+            "pexels-pixabay-247763.png",
+            "pexels-darius-krause-2253934.png",
+            "pexels-kateryna-babaieva-2760242.png",
+            "pexels-pixabay-162487.png",
+            "pexels-pixabay-236709.png",
+            "pexels-pixabay-257636.png",
+            "pexels-elevate-1267338.png",
+            "pexels-magda-ehlers-2569839.png",
+            "pexels-pixabay-236698.png",
+            "pexels-pixabay-236748.png",
+            "pexels-pixabay-357440.png"
+        ]
     },
 
     "output":{
-        "size_train": 100,
-        "size_val": 10,
-        "just_merge": 0.95,
+        "size_train": 50,
+        "size_val": 1,
+        "just_merge": 0.75,
         "skew_angle:material": 4
     },
 
@@ -33,8 +51,8 @@
             "clip_end": 50
         },
 
-        "resolution_x": 640,
-        "resolution_y": 360,
+        "resolution_x": 1920,
+        "resolution_y": 1080,
 
         "model_scale": 0.5E-3,
         "exposure": 40,
@@ -49,14 +67,14 @@
     },
     
     "random":{
-        "distractors": [1,2],
+        "distractors": [0,2],
 
-        "x_pos": [-0.1, 0.1],
-        "y_pos": [-0.1, 0.1],
-        "z_pos": [0, 0.5],
+        "x_pos": [-0.2, 0.2],
+        "y_pos": [-0.2, 0.2],
+        "z_pos": [-0.2, 0.5],
 
-        "inc":[0, 1.5708],
-        "azi":[0, 1.5708],
+        "inc": [-1.6, 1.6],
+        "azi": [-1.6, 1.6],
 
         "metallic": 0,
         "roughness": 1
