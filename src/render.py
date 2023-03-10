@@ -97,17 +97,16 @@ class Distractor(Target):
 # print = _print
 
 
-def importPLYobject(filepath, conf_obj, scale):
+def importPLYobject(filepath, conf_obj):
     """import PLY object from path and scale it."""
 
     if conf_obj.model in bpy.data.objects:
-
         return bpy.data.objects[conf_obj.model]
 
     bpy.ops.import_mesh.ply(filepath=filepath)
     obj = bpy.context.selected_objects[0]
     obj.name = conf_obj.model
-    obj.scale = (scale, scale, scale)  # scale PLY object
+    obj.scale = (config["model_scale"], config["model_scale"], config["model_scale"])  # scale PLY object
 
     # add vertex color to PLY object
     obj.select_set(True)
@@ -130,7 +129,7 @@ def importPLYobject(filepath, conf_obj, scale):
     return obj
 
 
-def importOBJobject(filepath, conf_obj, distractor=False):
+def importOBJobject(filepath, conf_obj):
     """import an *.OBJ file to Blender"""
 
     if conf_obj.model in bpy.data.objects:
@@ -150,6 +149,7 @@ def importOBJobject(filepath, conf_obj, distractor=False):
     # get BSDF material node
     obj = bpy.context.selected_objects[0]
     obj.name = conf_obj.model
+    obj.scale = (config["model_scale"], config["model_scale"], config["model_scale"])
 
     mat = obj.active_material
     mat_links = mat.node_tree.links
@@ -356,7 +356,7 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
             conf_obj.model_path, conf_obj.model, "model.obj"), conf_obj)
     elif "model.ply" in files:
         obj = importPLYobject(os.path.join(
-            conf_obj.model_path, conf_obj.model, "model.ply"), conf_obj, scale=config["model_scale"])
+            conf_obj.model_path, conf_obj.model, "model.ply"), conf_obj)
     else:
         raise FileNotFoundError()
 
