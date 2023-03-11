@@ -155,7 +155,7 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
     coco_label = []
 
     total = len(merges)
-    digits = len(str(total))
+    digits = len(str(total-1))
 
     if endpoint != None:
         preview0, tf = merge(merges[-1]["backgrounds"], merges[-1]["object"])

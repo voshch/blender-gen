@@ -96,6 +96,11 @@ class Distractor(Target):
 #     ...
 # print = _print
 
+def autoscale(obj, cam=bpy.data.objects['Camera']):
+    long = np.max(np.linalg.norm(np.array([project_by_object_utils(cam, Vector(corner)) for corner in obj.bound_box])))
+    scale = 1/long
+    #log.print(f"{obj.name} max {long} scaled by {scale}")
+    obj.scale = (scale, scale, scale)
 
 def importPLYobject(filepath, conf_obj):
     """import PLY object from path and scale it."""
@@ -106,7 +111,9 @@ def importPLYobject(filepath, conf_obj):
     bpy.ops.import_mesh.ply(filepath=filepath)
     obj = bpy.context.selected_objects[0]
     obj.name = conf_obj.model
-    obj.scale = (config["model_scale"], config["model_scale"], config["model_scale"])  # scale PLY object
+    
+    autoscale(obj)
+    obj.scale = Vector(config["model_scale"] * np.array(obj.scale))
 
     # add vertex color to PLY object
     obj.select_set(True)
@@ -133,23 +140,20 @@ def importOBJobject(filepath, conf_obj):
     """import an *.OBJ file to Blender"""
 
     if conf_obj.model in bpy.data.objects:
-        bpy.ops.object.select_all(action='DESELECT')
-        bpy.data.objects[conf_obj.model].select_set(True)
-        bpy.ops.object.delete()
+        return bpy.data.objects[conf_obj.model]
 
     bpy.ops.import_scene.obj(filepath=filepath, axis_forward='Y', axis_up='Z')
     # print("importing model with axis_forward=Y, axis_up=Z")
 
-    # ctx = bpy.context.copy()
-    # ctx['active_object'] = obj_objects[0]
-    # ctx['selected_objects'] = obj_objects
-    # bpy.ops.object.join(ctx)  # join multiple elements into one element
-    # bpy.ops.object.join(obj_objects)  # join multiple elements into one eleme
+    bpy.context.view_layer.objects.active = bpy.context.selected_objects[0]
+    bpy.ops.object.join()  # join multiple elements into one eleme
 
     # get BSDF material node
     obj = bpy.context.selected_objects[0]
     obj.name = conf_obj.model
-    obj.scale = (config["model_scale"], config["model_scale"], config["model_scale"])
+
+    autoscale(obj)
+    obj.scale = Vector(config["model_scale"] * np.array(obj.scale))
 
     mat = obj.active_material
     mat_links = mat.node_tree.links
@@ -476,9 +480,8 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
 
         else:  # use blenders 3D bbox (simple but fast)
 
-            for i, v in enumerate(vertices):
-                vec = np.array(project_by_object_utils(
-                    camera, obj.matrix_world @ Vector(v.co)))
+            for corner in corners:
+                vec = np.array(project_by_object_utils(camera, obj.matrix_world @ Vector(corner)))
 
                 labels.append(vec[0])
                 labels.append(vec[1])
