@@ -160,9 +160,12 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
     with open("/data/intermediate/render/renders/object/annotations.json") as f:
         object_annotations = json.load(f)
 
-    distractor_annotations = None
-    with open("/data/intermediate/render/renders/distractor/annotations.json") as f:
-        distractor_annotations = json.load(f)
+    distractor_annotations = {}
+    try:
+        with open("/data/intermediate/render/renders/distractor/annotations.json") as f:
+            distractor_annotations = json.load(f)
+    except FileNotFoundError:
+        pass;
 
     camera_K = None
     with open("/data/intermediate/render/camera_intrinsic.json") as f:
