@@ -37,7 +37,7 @@
         "resolution_x": 1920,
         "resolution_y": 1080,
 
-        "model_scale": 0.25,
+        "model_scale": 1,
         "exposure": 40,
         "compute_bbox": "tight",
         "use_fps_keypoints": false,
