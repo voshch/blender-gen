@@ -7,6 +7,7 @@ import sys
 import click
 import grequests as requests
 import base64
+import shapely
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
@@ -61,8 +62,7 @@ def load(target: str, name: str):
 
     return storage[target][name]
 
-
-def transform(img: np.ndarray, x: np.float64, y: np.float64, z: np.float64):
+def get_trf(x: np.float64, y: np.float64, z: np.float64):
     z = z if z > -1+1e-1 else -1+1e-1  # maybe clip to zero instead idk
 
     trf = np.array([
@@ -70,14 +70,18 @@ def transform(img: np.ndarray, x: np.float64, y: np.float64, z: np.float64):
         [0, 1/(1+z), (y + .5*z/(1+z))*cfg["resolution_y"]]
     ], dtype=np.float32)
 
+    return trf
+
+def transform(img: np.ndarray, trf: np.ndarray):
     return cv.warpAffine(
         img,
         trf,
         (cfg["resolution_x"], cfg["resolution_y"])
-    ), trf
+    )
 
 
 def layer(img: np.ndarray, overlay: np.ndarray):
+    
     alpha = overlay[..., -1]/255.
     alphas = np.dstack([alpha] * img.shape[2])
     img *= 1-alphas
@@ -101,29 +105,45 @@ def layer(img: np.ndarray, overlay: np.ndarray):
 
 
 def merge(backgrounds, obj, distractor=[]):
+
+    trfs = []
+
     im_obj = load("object", obj["name"])
     im_bg = load("backgrounds", backgrounds["name"]) if backgrounds["name"] != None else np.zeros(
         (cfg["resolution_y"], cfg["resolution_x"], *im_obj.shape[2:]))
 
-    im_distractor = list(
-        map(lambda x: load("distractor", x["name"]), distractor))
+    im_distractor = list(map(lambda x: load("distractor", x["name"]), distractor))
 
     img = np.asarray(im_bg.copy(), dtype=np.float64)
 
-    im_obj, trf = transform(im_obj, *obj["translation"])
+    trf = get_trf(*obj["translation"])
+    trfs.append(trf)
+
+    im_obj = transform(im_obj, trf)
     layer(img, im_obj)
 
     for im_dist, dist in zip(im_distractor, distractor):
-        layer(img, transform(im_dist, *dist["translation"])[0])
 
-    return img, trf
+        trf = get_trf(*dist["translation"])
+        trfs.append(trf)
 
+        layer(img, transform(im_dist, trf))
+
+    return img, trfs
+
+def occlude(clippee: shapely.Polygon, clipper: shapely.Polygon):
+    diff = clippee.difference(clipper)
+    if isinstance(diff, shapely.MultiPolygon):
+        return clippee
+    return diff
+
+def trf_vec2(trf, vec2):
+    return [(trf @ np.array([*vec, 1])).tolist() for vec in vec2]
 
 def create_preview(img):
     imgdata = cv.imencode(Parameters.preview_ext, cv.resize(img, (Parameters.preview_width, Parameters.preview_height), cv.INTER_AREA))[1]
     imgdata_enc = base64.b64encode(imgdata).decode("utf-8")
     return f"data:{Parameters.preview_MIME};base64,{imgdata_enc}"
-
 
 @click.command(context_settings=dict(
     ignore_unknown_options=True,
@@ -139,9 +159,16 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
     with open("/data/intermediate/config/merge.json") as f:
         merges = json.load(f)
 
-    annotations = None
-    with open("/data/intermediate/render/annotations.json") as f:
-        annotations = json.load(f)
+    object_annotations = None
+    with open("/data/intermediate/render/renders/object/annotations.json") as f:
+        object_annotations = json.load(f)
+
+    distractor_annotations = {}
+    try:
+        with open("/data/intermediate/render/renders/distractor/annotations.json") as f:
+            distractor_annotations = json.load(f)
+    except FileNotFoundError:
+        pass;
 
     camera_K = None
     with open("/data/intermediate/render/camera_intrinsic.json") as f:
@@ -150,6 +177,7 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
     basepath = os.path.join("/data/output/", mode_internal)
 
     os.makedirs(os.path.join(basepath, "images"), exist_ok=True)
+    os.makedirs(os.path.join(basepath, "dota"), exist_ok=True)
 
     coco_img = []
     coco_label = []
@@ -158,7 +186,7 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
     digits = len(str(total-1))
 
     if endpoint != None:
-        preview0, tf = merge(merges[-1]["backgrounds"], merges[-1]["object"])
+        preview0, trfs = merge(merges[-1]["backgrounds"], merges[-1]["object"])
         requests.post(f"{endpoint}/datasetPreview/", json=dict(
             taskId=taskid,
             mode=mode_internal,
@@ -169,8 +197,8 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
 
     for i, conf in enumerate(merges):
 
-        merged, trf = merge(conf["backgrounds"],
-                            conf["object"], conf["distractor"])
+        merged, trfs = merge(conf["backgrounds"], conf["object"], conf["distractor"])
+        trf_obj = trfs[0]
 
         id = f"{i:0{digits}}"
 
@@ -190,29 +218,42 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
             "width": cfg["resolution_y"],
         })
 
-        annotation = annotations[conf["object"]["name"]]
+        annotation = object_annotations[conf["object"]["name"]]
 
-        trf_bbox = [
-            trf[0, 0] * annotation["bbox"][0] + trf[0, 2],  # x1
-            trf[1, 1] * annotation["bbox"][1] + trf[1, 2],  # x1
-            trf[0, 0] * annotation["bbox"][2],  # x2
-            trf[1, 1] * annotation["bbox"][3]  # y2
+        bbox = [
+            trf_obj[0, 0] * annotation["bbox"][0] + trf_obj[0, 2],  # x1
+            trf_obj[1, 1] * annotation["bbox"][1] + trf_obj[1, 2],  # x1
+            trf_obj[0, 0] * annotation["bbox"][2],  # x2
+            trf_obj[1, 1] * annotation["bbox"][3]  # y2
         ]
 
-        #
-        trf_segmentation = [(trf @ np.array([*vec, 1])).tolist() for vec in annotation["hull"]]
+        
+        segmentation = shapely.Polygon(trf_vec2(trf_obj, annotation["hull"]))
 
+        for i, distractor in enumerate(conf["distractor"]):
+            segmentation = occlude(segmentation, shapely.Polygon(trf_vec2(trfs[i+1], distractor_annotations[distractor["name"]]["hull"])))
+
+        segmentation = list(segmentation.boundary.coords)
+
+        #coco
         coco_label.append({
             "id": id,  # overwrite
             "image_id": id,
+            "caption": annotation["label"],
             "category_id": 0,
-            "segmentation": [[coord for vec in trf_segmentation for coord in vec]], #flat
+            "segmentation": [[coord for vec in segmentation for coord in vec]], #flat
             "iscrowd": 0,
-            "bbox": trf_bbox,
-            "area": trf_bbox[2] * trf_bbox[3],
+            "bbox": bbox,
+            "area": bbox[2] * bbox[3],
             "keypoints": [],
             "num_keypoints": 0
         })
+
+
+        trf_rotated_bbox = trf_vec2(trf_obj, annotation["rotated_bbox"])
+
+        with open(os.path.join(basepath, f"dota/{id}.txt"), "w") as f:
+            f.write(f"{', '.join([str(coord) for vec in trf_rotated_bbox for coord in vec])}, {annotation['label']}, 0\n")
 
         print(f"\r{i+1:0{digits}} / {total}", end="", flush=True)
 
