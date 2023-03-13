@@ -132,7 +132,10 @@ def merge(backgrounds, obj, distractor=[]):
     return img, trfs
 
 def occlude(clippee: shapely.Polygon, clipper: shapely.Polygon):
-    return clippee.difference(clipper)
+    diff = clippee.difference(clipper)
+    if isinstance(diff, shapely.MultiPolygon):
+        return clippee
+    return diff
 
 def trf_vec2(trf, vec2):
     return [(trf @ np.array([*vec, 1])).tolist() for vec in vec2]
@@ -230,7 +233,7 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
         for i, distractor in enumerate(conf["distractor"]):
             segmentation = occlude(segmentation, shapely.Polygon(trf_vec2(trfs[i+1], distractor_annotations[distractor["name"]]["hull"])))
 
-        segmentation = list(segmentation.exterior.coords)
+        segmentation = list(segmentation.boundary.coords)
 
         #coco
         coco_label.append({
