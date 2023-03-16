@@ -227,13 +227,16 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
             trf_obj[1, 1] * annotation["bbox"][3]  # y2
         ]
 
-        
-        segmentation = shapely.Polygon(trf_vec2(trf_obj, annotation["hull"]))
 
-        for i, distractor in enumerate(conf["distractor"]):
-            segmentation = occlude(segmentation, shapely.Polygon(trf_vec2(trfs[i+1], distractor_annotations[distractor["name"]]["hull"])))
+        segmentation = []
 
-        segmentation = list(segmentation.boundary.coords)
+        if annotation["hull"] != None:
+            segmentation = shapely.Polygon(trf_vec2(trf_obj, annotation["hull"]))
+
+            for i, distractor in enumerate(conf["distractor"]):
+                segmentation = occlude(segmentation, shapely.Polygon(trf_vec2(trfs[i+1], distractor_annotations[distractor["name"]]["hull"])))
+
+            segmentation = list(segmentation.boundary.coords)
 
         #coco
         coco_label.append({
