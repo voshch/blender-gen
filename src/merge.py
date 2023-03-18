@@ -132,15 +132,21 @@ def merge(backgrounds, obj, distractor=[]):
     return img, trfs
 
 def occlude(clippee: shapely.MultiPolygon, clipper: shapely.MultiPolygon):
-    clipped = clippee.difference(clipper)
 
-    if isinstance(clipped, shapely.MultiPolygon):
-        return clipped
+    try:
+        clipped = clippee.difference(clipper)
+
+        if isinstance(clipped, shapely.MultiPolygon):
+            return clipped
+        
+        if isinstance(clipped, shapely.GeometryCollection):
+            return shapely.MultiPolygon(list(filter(lambda x: isinstance(x, shapely.Polygon), clipped.geoms)))
+
+        return shapely.MultiPolygon([clipped])
     
-    if isinstance(clipped, shapely.GeometryCollection):
-        return shapely.MultiPolygon(list(filter(lambda x: isinstance(x, shapely.Polygon), clipped.geoms)))
 
-    return shapely.MultiPolygon([clipped])
+    except shapely.geos.TopologicalError:
+        return clippee
 
 def trf_vec2(trf, vec2):
     return [(trf @ np.array([*vec, 1])).tolist() for vec in vec2]
