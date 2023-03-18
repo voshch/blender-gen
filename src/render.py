@@ -21,7 +21,9 @@ import glob
 from mathutils import Vector, Matrix
 import click
 import datetime
+
 import shapely
+import shapely.ops
 
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import util
@@ -449,10 +451,20 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
 
 
             # SEGMENTATION
+            faces = obj.data.polygons
+            faces = [shapely.Polygon([vertices[index] for index in face.vertices]).buffer(0) for face in faces]
 
-            #hull = util.ConcaveHull(vertices)
-            hull = shapely.convex_hull(shapely.MultiPoint(vertices))
-            annotation["hull"] = (np.array(hull.boundary.coords) * np.array([config["resolution_x"], config["resolution_y"]])).tolist()
+            hull = shapely.MultiPolygon(faces)
+            hull = shapely.ops.unary_union(hull)
+            hull = hull.boundary #work with boundary curves instead of full polys
+
+            if not isinstance(hull, shapely.MultiLineString):
+                hull = shapely.MultiLineString([hull])
+
+            maxlen = max(part.length for part in hull.geoms)
+            threshold = 0.01
+
+            annotation["hull"] = [(np.array(part.coords) * np.array([config["resolution_x"], config["resolution_y"]])).tolist() for part in hull.geoms if part.length > threshold * maxlen]
 
 
         else:  # use blenders 3D bbox (simple but fast)
@@ -517,11 +529,11 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
 
         center = (corners).mean(axis = 0)
         relative = scale * (base - center)
-        projections = np.array([left, up]) @ relative.T
+        projections = relative @ np.array([left, up]).T
         # = [[|vertex| * ang(left, vertex), |vertex| * ang(up, vertex)]] since left already normalized
 
-        min_left, min_up = np.min(projections, axis=1)
-        max_left, max_up = np.max(projections, axis=1)
+        min_left, min_up = np.min(projections, axis=0)
+        max_left, max_up = np.max(projections, axis=0)
 
 
         # log.print(f"camera rotation is {camera.rotation_euler.to_matrix()}")
