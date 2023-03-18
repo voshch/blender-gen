@@ -131,11 +131,16 @@ def merge(backgrounds, obj, distractor=[]):
 
     return img, trfs
 
-def occlude(clippee: shapely.Polygon, clipper: shapely.Polygon):
-    diff = clippee.difference(clipper)
-    if isinstance(diff, shapely.MultiPolygon):
-        return clippee
-    return diff
+def occlude(clippee: shapely.MultiPolygon, clipper: shapely.MultiPolygon):
+    clipped = clippee.difference(clipper)
+
+    if isinstance(clipped, shapely.MultiPolygon):
+        return clipped
+    
+    if isinstance(clipped, shapely.GeometryCollection):
+        return shapely.MultiPolygon(list(filter(lambda x: isinstance(x, shapely.Polygon), clipped.geoms)))
+
+    return shapely.MultiPolygon([clipped])
 
 def trf_vec2(trf, vec2):
     return [(trf @ np.array([*vec, 1])).tolist() for vec in vec2]
@@ -231,12 +236,13 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
         segmentation = []
 
         if annotation["hull"] != None:
-            segmentation = shapely.Polygon(trf_vec2(trf_obj, annotation["hull"]))
+            segmentation = shapely.MultiPolygon([shapely.Polygon(trf_vec2(trf_obj, segment)) for segment in annotation["hull"]])
 
-            for i, distractor in enumerate(conf["distractor"]):
-                segmentation = occlude(segmentation, shapely.Polygon(trf_vec2(trfs[i+1], distractor_annotations[distractor["name"]]["hull"])))
+            for d, distractor in enumerate(conf["distractor"]):
+                shape = shapely.MultiPolygon([shapely.Polygon(trf_vec2(trfs[d+1], segment)) for segment in distractor_annotations[distractor["name"]]["hull"]])
+                segmentation = occlude(segmentation, shape)
 
-            segmentation = list(segmentation.boundary.coords)
+            segmentation = [list(segment.boundary.coords) for segment in segmentation.geoms]
 
         #coco
         coco_label.append({
@@ -244,7 +250,7 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
             "image_id": id,
             "caption": annotation["label"],
             "category_id": 0,
-            "segmentation": [[coord for vec in segmentation for coord in vec]], #flat
+            "segmentation": [[coord for vec in segment for coord in vec] for segment in segmentation], #flat
             "iscrowd": 0,
             "bbox": bbox,
             "area": bbox[2] * bbox[3],

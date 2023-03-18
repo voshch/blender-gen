@@ -17,8 +17,8 @@
     },
 
     "output":{
-        "size_train": 100,
-        "size_val": 3,
+        "size_train": 200,
+        "size_val": 8,
         "just_merge": 0.95,
         "skew_angle:material": 4
     },
@@ -39,7 +39,7 @@
 
         "model_scale": 1,
         "exposure": 40,
-        "compute_bbox": "fast",
+        "compute_bbox": "tight",
         "use_fps_keypoints": false,
 
         "use_cycles": true,
