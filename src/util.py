@@ -100,8 +100,6 @@ def saveCOCOlabel(images, annotations, Kdict, path):
         json.dump(coco, write_file, indent=2)
 
 
-
-
 class Log:
     stdout = sys.stdout
     stderr = sys.stderr
