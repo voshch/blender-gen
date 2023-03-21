@@ -18,7 +18,7 @@
 
     "output":{
         "size_train": 100,
-        "size_val": 1,
+        "size_val": 3,
         "just_merge": 0.95,
         "skew_angle:material": 4
     },
@@ -52,12 +52,12 @@
     "random":{
         "distractors": 1,
 
-        "x_pos": 0,
-        "y_pos": 0,
-        "z_pos": 0,
+        "x_pos": [-0.2, 0.2],
+        "y_pos": [-0.2, 0.2],
+        "z_pos": [-0.2, 0.2],
 
-        "inc":-1.59,
-        "azi":0,
+        "inc": [-1,1],
+        "azi": [-1,1],
 
         "metallic": 0,
         "roughness": 1

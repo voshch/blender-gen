@@ -22,6 +22,9 @@ from mathutils import Vector, Matrix
 import click
 import datetime
 
+import shapely
+import shapely.ops
+
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 import util
 
@@ -170,11 +173,6 @@ def importOBJobject(filepath, conf_obj):
 
     return obj
 
-
-def leftOf(l1, l2, p):  # https://math.stackexchange.com/questions/274712/calculate-on-which-side-of-a-straight-line-is-a-given-point-located
-    l1l2 = l2 - l1
-    l1p = p - l1
-    return l1l2[1] * l1p[0] - l1l2[0] * l1p[1] > 0
 
 
 def project_by_object_utils(cam, point):
@@ -345,18 +343,6 @@ def add_shader_on_world():
     bpy.data.worlds['World'].node_tree.links.new(
         emission_node.outputs['Emission'], world_node.inputs['Surface'])
 
-def euler_to_mat(roll, pitch, yaw):
-
-    #per https://en.wikipedia.org/wiki/Euler_angles#Rotation_matrix XZY
-
-    c1, c2, c3 = np.cos([roll, pitch, yaw])
-    s1, s2, s3 = np.sin([roll, pitch, yaw])
-    return np.array([
-        [c2*c3,             -s2,    c2*s3           ],
-        [s1*s3 + c1*c3*s2,  c1*c2,  c1*s2*s3 - c3*s1],
-        [c3*s1*s2 - c1*s3,  c2*s1,  c1*c3 + s1*s2*s3]
-    ])
-
 def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
     """configure the blender scene with specific config"""
 
@@ -432,6 +418,8 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
     vertices = obj.data.vertices
     vertices = np.array([np.array(project_by_object_utils(camera, obj.matrix_world @ Vector(v.co))) for v in vertices])
 
+    scale = np.array([config["resolution_x"], config["resolution_y"]])
+
     # compute bounding box either with 3D bbox or by going through vertices
     # loop through all vertices and transform to image coordinates
 
@@ -447,48 +435,37 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
 
         
         
-        min_x, max_x, min_y, max_y = 1, 0, 1, 0
+        min_x, max_x, min_y, max_y = None, None, None, None
 
-        #bbox and segmentation
+        # higher quality, slower
         if config["compute_bbox"] == 'tight':
-            
-            S = []
-            highest = None
 
-            for i, vec in enumerate(vertices):
-                
-                S.append(vec)
+            # BBOX
 
-                x = vec[0]
-                y = vec[1]
+            min_x, min_y = np.min(vertices, axis=0)
+            max_x, max_y = np.max(vertices, axis=0)
 
-                if x > max_x:
-                    max_x = x
-                if x < min_x:
-                    min_x = x
-                    highest = i  # guaranteed element of convex hull
-                if y > max_y:
-                    max_y = y
-                if y < min_y:
-                    min_y = y
 
-            hull = []  # gift wrapping algorithm for convex hull
-            startpoint = S[highest]
-            endpoint = None
+            #with open("/data/intermediate/vertices.txt", "w") as f:
+            #    np.savetxt(f, vertices)
 
-            while True:
-                hull.append(startpoint)
-                endpoint = S[0]
-                for point in S:
-                    if (startpoint[0] == endpoint[0]) or leftOf(startpoint, endpoint, point):
-                        endpoint = point
-                startpoint = endpoint
 
-                if endpoint[0] == hull[0][0]:
-                    break
+            # SEGMENTATION
+            faces = obj.data.polygons
+            faces = [shapely.Polygon([vertices[index] for index in face.vertices]).buffer(0) for face in faces]
 
-            annotation["hull"] = np.array(
-                hull * np.array([config["resolution_x"], config["resolution_y"]])).tolist()
+            hull = shapely.MultiPolygon(faces)
+            hull = shapely.ops.unary_union(hull)
+            hull = hull.boundary #work with boundary curves instead of full polys
+
+            if not isinstance(hull, shapely.MultiLineString):
+                hull = shapely.MultiLineString([hull])
+
+            maxlen = max(part.length for part in hull.geoms)
+            threshold = 0.01
+
+            annotation["hull"] = [(np.array(part.coords) * np.array([config["resolution_x"], config["resolution_y"]])).tolist() for part in hull.geoms if part.length > threshold * maxlen]
+
 
         else:  # use blenders 3D bbox (simple but fast)
 
@@ -518,6 +495,13 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
                 labels[14], labels[16], labels[18]
             ])
 
+
+            # SEGMENTATION
+
+            annotation["hull"] = None
+
+
+
         x_range = max_x - min_x
         y_range = max_y - min_y
 
@@ -525,49 +509,47 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
             min_x * config["resolution_x"], min_y * config["resolution_y"],
             x_range * config["resolution_x"], y_range * config["resolution_y"]
         ]
-
-
-        #rotated bbox
-
-        if True:
-
-            center = corners.mean(axis = 0)
-
-            up = euler_to_mat(*obj.rotation_euler) @ np.array([0,1,0])
-            up = np.array(project_by_object_utils(camera, obj.matrix_world @ Vector(up)))
-            up /= (np.linalg.norm(up) or 1)
-
-            left = np.array([up[1], -up[0]])
-            left /= (np.linalg.norm(left) or 1)
             
-            min_x, max_x = 0, 0
-            min_y, max_y = 0, 0
-            for vertex in vertices:
-                x = np.inner(vertex, left) # = |vertex| * cos(a) since left already normalized
-                y = np.inner(vertex, up)
-
-                min_x = min(min_x, x)
-                max_x = max(max_x, x)
-                min_y = min(min_y, y)
-                max_y = max(max_y, y)
 
 
-            # log.print(f"number of vertices {len(vertices)}")
-            # log.print(f"center is {center}")
-            # log.print(f"rotation is {euler_to_mat(*obj.rotation_euler)}")
-            # log.print(f"up is {up}")
-            # log.print(f"left is {left}")
-            # log.print(f"with corners {[min_x, max_x, min_y, max_y]}")
 
-            scale = np.array([config["resolution_x"], config["resolution_y"]])
+        # ROTATED BBOX
 
-            annotation["rotated_bbox"] = [
-                (scale * (center + max_x * up + max_y * left)).tolist(),
-                (scale * (center + min_x * up + max_y * left)).tolist(),
-                (scale * (center + min_x * up + min_y * left)).tolist(),
-                (scale * (center + max_x * up + min_y * left)).tolist(),
-            ]
+        base = vertices if config["compute_bbox"] == "tight" else corners
 
+        up = np.array(obj.rotation_euler.to_matrix()) @ np.array([0,1,0])
+        up = scale * [up[0], -up[1]] #cv coords
+
+        up = np.array([up[0], up[1]])
+        left = np.array([up[1], -up[0]])
+
+        up /= (np.linalg.norm(up) or 1)            
+        left /= (np.linalg.norm(left) or 1)
+
+
+        center = (corners).mean(axis = 0)
+        relative = scale * (base - center)
+        projections = relative @ np.array([left, up]).T
+        # = [[|vertex| * ang(left, vertex), |vertex| * ang(up, vertex)]] since left already normalized
+
+        min_left, min_up = np.min(projections, axis=0)
+        max_left, max_up = np.max(projections, axis=0)
+
+
+        # log.print(f"camera rotation is {camera.rotation_euler.to_matrix()}")
+        # log.print(f"number of vertices {len(base)}")
+        # log.print(f"center is {center}")
+        # log.print(f"rotation is {obj.rotation_euler.to_matrix()}")
+        # log.print(f"up prj is {up}")
+        # log.print(f"left prj is {left}")
+        # log.print(f"with corners {[min_x, max_x, min_y, max_y]}")
+
+        annotation["rotated_bbox"] = [
+            (scale * center + max_left * left + max_up * up).tolist(),
+            (scale * center + min_left * left + max_up * up).tolist(),
+            (scale * center + min_left * left + min_up * up).tolist(),
+            (scale * center + max_left * left + min_up * up).tolist(),
+        ]
 
     return annotation
 
@@ -782,6 +764,7 @@ def main():
             object_annotations[annotation["id"]] = annotation
 
         del obj
+        log.print(f'')
 
     with open("/data/intermediate/render/renders/object/annotations.json", "w") as f:
         json.dump(object_annotations, f)
@@ -799,6 +782,7 @@ def main():
         for annotation in annotations:
             distractor_annotations[annotation["id"]] = annotation
         del obj
+        log.print(f'')
 
     with open("/data/intermediate/render/renders/distractor/annotations.json", "w") as f:
         json.dump(distractor_annotations, f)

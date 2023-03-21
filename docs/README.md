@@ -53,7 +53,7 @@ Run
 
 ```
 mkdir -p ./data/output
-docker run --gpus all --volume $(pwd)/data/input:/data/input --volume $(pwd)/data/output:/data/output blender-gen
+docker run --gpus all --volume "$(pwd)/data/input:/data/input" --volume "$(pwd)/data/output:/data/output" blender-gen
 ```
 
 to test your setup.
