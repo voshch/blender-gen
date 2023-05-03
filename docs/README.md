@@ -123,3 +123,13 @@ API overview for sending requests to `endpoint`:
 | `random.roughness`             | range for roughness/polishedness of model texture                                                                                                               | `[0.1, 0.6]`                             |
 
 All ranges in the last section are 2-element list [low, high]. If a constant value is desired, a scalar can be written instead of a list.
+
+## output
+
+The output is split into `train` and `val` subdirectories inside `output`. Each subdirectory contains the following file structure:
+
+| file                   | type      | contents                                |
+| ---------------------- | --------- | --------------------------------------- |
+| `images/`              | directory | output images as `[id].png`             |
+| `dota/`                | directory | DOTA label for each image as `[id].txt` |
+| `annotation_coco.json` | file      | COCO labels for all images              |
