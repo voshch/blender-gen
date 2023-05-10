@@ -4,12 +4,20 @@
         "object": [
             {
                 "model": "Suzanne",
-                "label": "Suzanne"
+                "label": "Suzanne",
+                "size": 1,
+                "multiplicity": 3
+            },
+            {
+                "model": "Cube",
+                "label": "Cube",
+                "size": 4
             }
         ],
         "distractor": [
             {
-                "model": "Cube"
+                "model": "Cube",
+                "size": 4
             }
         ],
         "environment":[]
@@ -17,10 +25,10 @@
     },
 
     "output":{
-        "size_train": 200,
-        "size_val": 8,
+        "size_train": 100,
+        "size_val": 54,
         "just_merge": 0.95,
-        "skew_angle:material": 4
+        "skew_angle:material": 1
     },
 
 
@@ -37,7 +45,6 @@
         "resolution_x": 1920,
         "resolution_y": 1080,
 
-        "model_scale": 1,
         "exposure": 40,
         "compute_bbox": "tight",
         "use_fps_keypoints": false,

@@ -59,6 +59,10 @@ class Target:
             config["roughness"] = []
         config["roughness"] = config["roughness"] or [1]
 
+        if "size" not in config:
+            config["size"] = 1
+
+        self.size = config["size"]
         self.model = config["model"]
 
         self.config = config
@@ -117,7 +121,7 @@ def importPLYobject(filepath, conf_obj):
     obj.name = conf_obj.model
     
     autoscale(obj)
-    obj.scale = Vector(config["model_scale"] * np.array(obj.scale))
+    obj.scale = Vector(conf_obj.size * np.array(obj.scale))
 
     # add vertex color to PLY object
     obj.select_set(True)
@@ -157,7 +161,7 @@ def importOBJobject(filepath, conf_obj):
     obj.name = conf_obj.model
 
     autoscale(obj)
-    obj.scale = Vector(config["model_scale"] * np.array(obj.scale))
+    obj.scale = Vector(conf_obj.size * np.array(obj.scale))
 
     mat = obj.active_material
     mat_links = mat.node_tree.links
@@ -172,8 +176,6 @@ def importOBJobject(filepath, conf_obj):
     config["roughness"].append(bsdf.inputs['Roughness'].default_value)
 
     return obj
-
-
 
 def project_by_object_utils(cam, point):
     """returns normalized (x, y) image coordinates in OpenCV frame for a given blender world point."""
@@ -615,22 +617,6 @@ def setup():
     bpy.data.objects['Cube'].select_set(True)
     bpy.ops.object.delete()
 
-    #  import Model Object
-    """ NumberOfObjects = 1
-    for i in range(NumberOfObjects):
-        if (cfg.object_paths[i][-4:] == '.obj' or
-                cfg.object_paths[i][-4:] == '.OBJ'):
-            obj = importOBJobject(filepath=cfg.object_paths[i])
-        elif (cfg.object_paths[i][-4:] == '.ply' or
-              cfg.object_paths[i][-4:] == '.PLY'):
-            obj = importPLYobject(filepath=cfg.object_paths[i],
-                                  scale=cfg.model_scale) """
-
-    #  import Distractor Objects
-    """ NumberOfObjects = len(cfg.distractor_paths)
-    for i in range(NumberOfObjects):
-        obj = importOBJobject(filepath=cfg.distractor_paths[i], distractor=True) """
-
     #  save Model real world Bounding Box for PnP algorithm
     # np.savetxt("/intermediate/model_bounding_box.txt", util.orderCorners(obj.bound_box))
 
@@ -709,7 +695,7 @@ def render(camera, conf_obj):
         for block in bpy.data.lights:  # delete lights
             bpy.data.lights.remove(block)
 
-        log.print(f"\t{inc} - {azi} - {metallic} - {roughness} [in {datetime.datetime.now()-start}]")
+        log.print(f"\t{round(inc*180/math.pi):>4}° {round(azi*180/math.pi):>4}° [in {datetime.datetime.now()-start}]")
 
     bpy.ops.object.select_all(action='DESELECT')
     bpy.data.objects[conf_obj.model].select_set(True)

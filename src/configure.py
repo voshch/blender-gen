@@ -10,6 +10,10 @@ def draw_samples(range, samples):
     return numpy.random.uniform(*range, size=int(samples or 1)).tolist()
 
 
+def draw_linspace(range, samples):
+    return numpy.linspace(*range, samples, endpoint=True).tolist()
+
+
 @click.command(context_settings=dict(
     ignore_unknown_options=True,
     allow_extra_args=True,
@@ -47,7 +51,8 @@ def main(mode_internal):
 
     to_produce = config["output"]["images"]
     to_produce *= (1-config["output"]["just_merge"])
-    to_produce /= (len(config["input"]["object"]) or 1) + len(config["input"]["distractor"])
+    to_produce /= (len(config["input"]["object"]) or 1) + \
+        len(config["input"]["distractor"])
 
     dof_ang = isinstance(config["random"]["inc"], list) + \
         isinstance(config["random"]["azi"], list)
@@ -66,10 +71,13 @@ def main(mode_internal):
 
     for target in targets:
         if isinstance(config["random"][target], list):
-            targets[target] = draw_samples(
+            targets[target] = draw_linspace(
                 config["random"][target], targets[target])
         else:
             targets[target] = [config["random"][target]]
+
+    max_size = max(map(lambda x: x["size"], [
+                   *config["input"]["object"], * config["input"]["distractor"]]))
 
     conf_targets = dict(
         object=list(),
@@ -78,12 +86,14 @@ def main(mode_internal):
     )
 
     for obj in config["input"]["object"]:
+        obj["size"] = (obj["size"] / max_size) ** (1/3)  # 3 dimensions
         conf_targets["object"].append(dict(
             **obj,
             **targets
         ))
 
     for distractor in config["input"]["distractor"]:
+        distractor["size"] /= max_size
         conf_targets["distractor"].append(dict(
             **distractor,
             **targets
@@ -96,7 +106,8 @@ def main(mode_internal):
 
     backgrounds = None
     if "backgrounds" in config["input"]:
-        backgrounds = config["input"]["backgrounds"]  # 360° environment not implemented yet
+        # 360° environment not implemented yet
+        backgrounds = config["input"]["backgrounds"]
     else:
         backgrounds = os.listdir("/data/input/backgrounds/static")
 
@@ -118,19 +129,24 @@ def main(mode_internal):
             backgrounds=dict(
                 name=random.choice(backgrounds)
             ),
-            object=dict(
-                name=f'{config["input"]["object"][i%no_objects]["model"]}-{random.choice(targets["inc"])}-{random.choice(targets["azi"])}-{random.choice(targets["metallic"])}-{random.choice(targets["roughness"])}.png',
-                translation=[
-                    draw_samples(config["random"]["x_pos"], 1)[
-                        0] if dof_pos_x else config["random"]["x_pos"],
-                    draw_samples(config["random"]["y_pos"], 1)[
-                        0] if dof_pos_y else config["random"]["y_pos"],
-                    draw_samples(config["random"]["z_pos"], 1)[
-                        0] if dof_pos_z else config["random"]["z_pos"]
-                ]
-            ),
+            object=[],
             distractor=[]
         )
+
+        for obj in config["input"]["object"]:
+            for j in range(obj["multiplicity"] if "multiplicity" in obj else 1):
+                merge["object"].append(dict(
+                    name=f'{obj["model"]}-{random.choice(targets["inc"])}-{random.choice(targets["azi"])}-{random.choice(targets["metallic"])}-{random.choice(targets["roughness"])}.png',
+                    translation=[
+                        draw_samples(config["random"]["x_pos"], 1)[
+                            0] if dof_pos_x else config["random"]["x_pos"],
+                        draw_samples(config["random"]["y_pos"], 1)[
+                            0] if dof_pos_y else config["random"]["y_pos"],
+                        draw_samples(config["random"]["z_pos"], 1)[
+                            0] if dof_pos_z else config["random"]["z_pos"]
+                    ]
+                ),)
+        random.shuffle(merge["object"])
 
         for j in range(random.randint(*config["random"]["distractors"]) if dof_distractors else config["random"]["distractors"]):
             merge["distractor"].append(dict(
@@ -159,8 +175,8 @@ def main(mode_internal):
         f'Objects:    {(len(config["input"]["object"]) + len(config["input"]["distractor"]))}')
     print(f'inc:        {len(targets["inc"])}')
     print(f'azi:        {len(targets["azi"])}')
-    print(f'metallic:   {len(targets["metallic"])}')
-    print(f'roughness:  {len(targets["roughness"])}')
+    # print(f'metallic:   {len(targets["metallic"])}')
+    # print(f'roughness:  {len(targets["roughness"])}')
     print("")
 
 

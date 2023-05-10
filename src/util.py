@@ -70,7 +70,7 @@ def get_random_temperature_color():  # 4K-9K test
 #    return color_list[idx]
 
 
-def saveCOCOlabel(images, annotations, Kdict, path):
+def saveCOCOlabel(images, annotations, Kdict, path, categories):
     # https://cocodataset.org/#format-data
     info = {
         "year": datetime.datetime.now().year,
@@ -88,11 +88,11 @@ def saveCOCOlabel(images, annotations, Kdict, path):
         "annotations": annotations,
         "categories": [{
             "supercategory": "object_category",
-            "id": 0,
-            "name": "object",
+            "id": id,
+            "name": name,
             "skeleton": [],
             "keypoints": []
-        }],
+        } for name, id in categories.items()],
         "licenses": "",
     }
 
@@ -107,11 +107,11 @@ class Log:
     stderr = sys.stderr
 
     def print(self, message):
-        self.stdout.write(message)
+        self.stdout.write(str(message))
         self.stdout.write("\n")
         self.stdout.flush()
 
     def err(self, message):
-        self.stderr.write(message)
+        self.stderr.write(str(message))
         self.stderr.write("\n")
         self.stderr.flush()
