@@ -105,9 +105,10 @@ class Distractor(Target):
 # print = _print
 
 def autoscale(obj, cam=bpy.data.objects['Camera']):
-    long = np.max(np.linalg.norm(np.array([project_by_object_utils(cam, Vector(corner)) for corner in obj.bound_box])))
-    scale = 1/long
-    #log.print(f"{obj.name} max {long} scaled by {scale}")
+    corners = np.array(obj.bound_box)
+    long = np.max(np.abs(corners).max(axis=0))
+    scale = 1/np.linalg.norm(project_by_object_utils(cam, Vector(3*[long])))
+    log.print(f"{obj.name} max {long} scaled by {scale}")
     obj.scale = (scale, scale, scale)
 
 def importPLYobject(filepath, conf_obj):
@@ -177,6 +178,39 @@ def importOBJobject(filepath, conf_obj):
 
     return obj
 
+def importFBXObject(filepath, conf_obj):
+    """import an *.FBX file to Blender"""
+
+    if conf_obj.model in bpy.data.objects:
+        return bpy.data.objects[conf_obj.model]
+
+    bpy.ops.import_scene.fbx(filepath=filepath, axis_forward='Y', axis_up='Z')
+    # print("importing model with axis_forward=Y, axis_up=Z")
+
+    bpy.context.view_layer.objects.active = bpy.context.selected_objects[0]
+    bpy.ops.object.join()  # join multiple elements into one eleme
+
+    # get BSDF material node
+    obj = bpy.context.selected_objects[0]
+    obj.name = conf_obj.model
+
+    autoscale(obj)
+    obj.scale = Vector(conf_obj.size * np.array(obj.scale))
+
+    mat = obj.active_material
+    mat_links = mat.node_tree.links
+    nodes = mat.node_tree.nodes
+    bsdf = nodes.get("Principled BSDF")
+
+    texture = nodes.new(type="ShaderNodeTexImage")
+    # mat_links.new(texture.outputs['Color'], bsdf.inputs['Base Color'])
+
+    # save object material inputs
+    config["metallic"].append(bsdf.inputs['Metallic'].default_value)
+    config["roughness"].append(bsdf.inputs['Roughness'].default_value)
+
+    return obj
+
 def project_by_object_utils(cam, point):
     """returns normalized (x, y) image coordinates in OpenCV frame for a given blender world point."""
     scene = bpy.context.scene
@@ -186,8 +220,8 @@ def project_by_object_utils(cam, point):
         int(scene.render.resolution_x * render_scale),
         int(scene.render.resolution_y * render_scale),
     )
+
     # convert y coordinate to opencv coordinate system!
-    # return Vector((co_2d.x * render_size[0], render_size[1] - co_2d.y * render_size[1]))
     return Vector((co_2d.x, 1 - co_2d.y))  # normalized
 
 
@@ -355,6 +389,9 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
 
     files = os.listdir(os.path.join(conf_obj.model_path, conf_obj.model))
 
+    if "model.fbx" in files:
+        obj = importFBXObject(os.path.join(
+            conf_obj.model_path, conf_obj.model, "model.fbx"), conf_obj)
     if "model.obj" in files:
         obj = importOBJobject(os.path.join(
             conf_obj.model_path, conf_obj.model, "model.obj"), conf_obj)
@@ -386,17 +423,9 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
         inclination=0,
         azimuth=0)
 
-    empty_obj = bpy.data.objects["empty"]
-
     obj.location.x = 0
     obj.location.y = 0
     obj.location.z = 0
-
-    rot_angle1 = 0
-    rot_angle2 = 0
-    rot_angle3 = 0
-    # XYZ euler rotation on the empty object
-    empty_obj.rotation_euler = (rot_angle1, rot_angle2, rot_angle3)
 
     # update blender object world_matrices!
 
@@ -576,12 +605,7 @@ def setup():
     bpy.context.scene.render.image_settings.quality = 100
 
     # constrain camera to look at blenders (0,0,0) scene origin (empty_object)
-    cam_constraint = camera.constraints.new(type='TRACK_TO')
-    cam_constraint.track_axis = 'TRACK_NEGATIVE_Z'
-    cam_constraint.up_axis = 'UP_Y'
-    cam_constraint.use_target_z = True
-    empty_obj = bpy.data.objects.new("empty", None)
-    cam_constraint.target = empty_obj
+    camera.rotation_euler = (0,0,0)
 
     # composite node
     bpy.context.scene.use_nodes = True
@@ -697,6 +721,10 @@ def render(camera, conf_obj):
 
         log.print(f"\t{round(inc*180/math.pi):>4}° {round(azi*180/math.pi):>4}° [in {datetime.datetime.now()-start}]")
 
+        # save current scene as .blend file
+        bpy.ops.wm.save_as_mainfile(
+            filepath="/data/intermediate/render/scene.blend", check_existing=False)
+
     bpy.ops.object.select_all(action='DESELECT')
     bpy.data.objects[conf_obj.model].select_set(True)
     bpy.ops.object.delete()
@@ -783,9 +811,6 @@ def main():
 
     K, RT = get_camera_KRT(bpy.data.objects['Camera'])
     Kdict = save_camera_matrix(K)  # save Camera Matrix to K.txt
-    # save current scene as .blend file
-    bpy.ops.wm.save_as_mainfile(
-        filepath="/data/intermediate/render/scene.blend", check_existing=False)
 
 
     with open("/data/intermediate/render/render.lock", "w") as f:
