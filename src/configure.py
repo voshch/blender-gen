@@ -166,6 +166,9 @@ def main(mode_internal):
     with open("/data/intermediate/config/merge.json", "w") as f:
         json.dump(conf_merge, f)
 
+    with open("/data/intermediate/config/postfx.json", "w") as f:
+        json.dump(config["postfx"] if "postfx" in config else {}, f)
+
     total = (len(config["input"]["object"]) + len(config["input"]
              ["distractor"])) * numpy.prod([len(targets[k]) for k in targets])
 

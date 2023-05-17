@@ -68,5 +68,24 @@
 
         "metallic": 0,
         "roughness": 1
+    },
+
+    "postfx":{
+        "shot":{
+            "passthrough": true
+        },
+        "gaussian":{
+            "passthrough": false,
+            "radius": 20
+        },
+        "motion":{
+            "passthrough": true
+        },
+        "black":{
+            "passthrough": true
+        },
+        "quant":{
+            "passthrough": true
+        }
     }
 }
