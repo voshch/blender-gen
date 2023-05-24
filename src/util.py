@@ -70,7 +70,7 @@ def get_random_temperature_color():  # 4K-9K test
 #    return color_list[idx]
 
 
-def saveCOCOlabel(images, annotations, Kdict, path):
+def saveCOCOlabel(images, annotations, Kdict, path, categories):
     # https://cocodataset.org/#format-data
     info = {
         "year": datetime.datetime.now().year,
@@ -88,11 +88,11 @@ def saveCOCOlabel(images, annotations, Kdict, path):
         "annotations": annotations,
         "categories": [{
             "supercategory": "object_category",
-            "id": 0,
-            "name": "object",
+            "id": id,
+            "name": name,
             "skeleton": [],
             "keypoints": []
-        }],
+        } for name, id in categories.items()],
         "licenses": "",
     }
 
@@ -100,18 +100,26 @@ def saveCOCOlabel(images, annotations, Kdict, path):
         json.dump(coco, write_file, indent=2)
 
 
-
-
 class Log:
     stdout = sys.stdout
     stderr = sys.stderr
 
     def print(self, message):
-        self.stdout.write(message)
+        self.stdout.write(str(message))
         self.stdout.write("\n")
         self.stdout.flush()
 
     def err(self, message):
-        self.stderr.write(message)
+        self.stderr.write(str(message))
         self.stderr.write("\n")
         self.stderr.flush()
+
+# 0-255 gamma-corrected RGB to linear 0-1 rgb
+def srgb_to_rgb(v):
+    return v/12.92 if v <= 0.04045 else ((v+0.055)/(1.055))**2
+
+# https://stackoverflow.com/a/56678483
+# srgb to absolute luminance
+def srgb_to_luminance(rgb):
+    [r,g,b] = rgb
+    return 0.2126*srgb_to_rgb(r) + 0.7152*srgb_to_rgb(g) + 0.0722*srgb_to_rgb(b)

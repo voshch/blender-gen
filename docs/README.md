@@ -63,7 +63,7 @@ to test your setup.
 ### Running Docker
 
 ```
-docker run --gpus all --volume /path/to/input/folder/:/data/input --volume /path/to/output/folder/:/data/output blender-gen [--target target] [--endpoint url] [--taskID id] [--mode mode] [--coco-image-root path]
+docker run --gpus all --volume /path/to/input/folder/:/data/input --volume /path/to/output/folder/:/data/output blender-gen [--target target] [--endpoint url] [--taskID id] [--mode mode] [--coco-image-root path] [--output output]
 ```
 
 #### Arguments

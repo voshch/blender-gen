@@ -59,6 +59,10 @@ class Target:
             config["roughness"] = []
         config["roughness"] = config["roughness"] or [1]
 
+        if "size" not in config:
+            config["size"] = 1
+
+        self.size = config["size"]
         self.model = config["model"]
 
         self.config = config
@@ -101,9 +105,10 @@ class Distractor(Target):
 # print = _print
 
 def autoscale(obj, cam=bpy.data.objects['Camera']):
-    long = np.max(np.linalg.norm(np.array([project_by_object_utils(cam, Vector(corner)) for corner in obj.bound_box])))
-    scale = 1/long
-    #log.print(f"{obj.name} max {long} scaled by {scale}")
+    corners = np.array(obj.bound_box)
+    long = np.max(np.abs(corners).max(axis=0))
+    scale = 1/np.linalg.norm(project_by_object_utils(cam, Vector(3*[long])))
+    log.print(f"{obj.name} max {long} scaled by {scale}")
     obj.scale = (scale, scale, scale)
 
 def importPLYobject(filepath, conf_obj):
@@ -117,7 +122,7 @@ def importPLYobject(filepath, conf_obj):
     obj.name = conf_obj.model
     
     autoscale(obj)
-    obj.scale = Vector(config["model_scale"] * np.array(obj.scale))
+    obj.scale = Vector(conf_obj.size * np.array(obj.scale))
 
     # add vertex color to PLY object
     obj.select_set(True)
@@ -157,7 +162,7 @@ def importOBJobject(filepath, conf_obj):
     obj.name = conf_obj.model
 
     autoscale(obj)
-    obj.scale = Vector(config["model_scale"] * np.array(obj.scale))
+    obj.scale = Vector(conf_obj.size * np.array(obj.scale))
 
     mat = obj.active_material
     mat_links = mat.node_tree.links
@@ -173,7 +178,38 @@ def importOBJobject(filepath, conf_obj):
 
     return obj
 
+def importFBXObject(filepath, conf_obj):
+    """import an *.FBX file to Blender"""
 
+    if conf_obj.model in bpy.data.objects:
+        return bpy.data.objects[conf_obj.model]
+
+    bpy.ops.import_scene.fbx(filepath=filepath, axis_forward='Y', axis_up='Z')
+    # print("importing model with axis_forward=Y, axis_up=Z")
+
+    bpy.context.view_layer.objects.active = bpy.context.selected_objects[0]
+    bpy.ops.object.join()  # join multiple elements into one eleme
+
+    # get BSDF material node
+    obj = bpy.context.selected_objects[0]
+    obj.name = conf_obj.model
+
+    autoscale(obj)
+    obj.scale = Vector(conf_obj.size * np.array(obj.scale))
+
+    mat = obj.active_material
+    mat_links = mat.node_tree.links
+    nodes = mat.node_tree.nodes
+    bsdf = nodes.get("Principled BSDF")
+
+    texture = nodes.new(type="ShaderNodeTexImage")
+    # mat_links.new(texture.outputs['Color'], bsdf.inputs['Base Color'])
+
+    # save object material inputs
+    config["metallic"].append(bsdf.inputs['Metallic'].default_value)
+    config["roughness"].append(bsdf.inputs['Roughness'].default_value)
+
+    return obj
 
 def project_by_object_utils(cam, point):
     """returns normalized (x, y) image coordinates in OpenCV frame for a given blender world point."""
@@ -184,8 +220,8 @@ def project_by_object_utils(cam, point):
         int(scene.render.resolution_x * render_scale),
         int(scene.render.resolution_y * render_scale),
     )
+
     # convert y coordinate to opencv coordinate system!
-    # return Vector((co_2d.x * render_size[0], render_size[1] - co_2d.y * render_size[1]))
     return Vector((co_2d.x, 1 - co_2d.y))  # normalized
 
 
@@ -300,21 +336,56 @@ def place_camera(camera, radius, inclination, azimuth):
     return camera
 
 
-def setup_light(scene, inc, azi):
-    """create a random point light source."""
-    #  place new light in cartesian coordinates
-    x, y, z = get_sphere_coordinates(
-        1,
-        inclination=0,
-        azimuth=0)
-    light_data = bpy.data.lights.new(name="my-light-data", type='POINT')
-    light_data.color = (1., 1., 1.)
-    light_data.energy = config["exposure"]
-    light_object = bpy.data.objects.new(
-        name="my-light", object_data=light_data)
-    bpy.context.collection.objects.link(light_object)
-    light_object.location = (x, y, z)
+def setup_light(temperature, key_energy, key_inc, key_azi, fill_energy, back_energy):
+    """setup 3-point light model"""
 
+    rgb = util.kelvin_to_rgb(temperature)
+    d2r = math.pi / 180 #deg2rad
+
+    key_inc *= d2r
+    key_azi *= d2r
+
+    #key light
+    key_light = bpy.data.lights.new(name="key_light", type='SPOT')
+    key_light.color = rgb
+    key_light.energy = key_energy
+
+    key_light_object = bpy.data.objects.new(name="key_light_object", object_data=key_light)
+    bpy.context.collection.objects.link(key_light_object)
+    bpy.context.view_layer.objects.active = key_light_object
+
+    key_light_object.scale = (.1, .1, 1)
+    key_light_object.location = get_sphere_coordinates(2, key_inc, key_azi)
+    key_light_object.rotation_euler = ((-key_light_object.location).to_track_quat("-Z", "X").to_euler())
+
+    #fill light
+    fill_inc = math.pi/4 + key_inc / 2
+    fill_azi = math.pi - key_azi
+
+    fill_light = bpy.data.lights.new(name="fill_light", type='AREA')
+    fill_light.shape = "DISK"
+    fill_light.size = 1
+    fill_light.color = rgb
+    fill_light.energy = fill_energy
+
+    fill_light_object = bpy.data.objects.new(name="fill_light_object", object_data=fill_light)
+    bpy.context.collection.objects.link(fill_light_object)
+    bpy.context.view_layer.objects.active = fill_light_object
+
+    fill_light_object.scale = (.5, .5, 1)
+    fill_light_object.location = get_sphere_coordinates(2, fill_inc, fill_azi)
+    fill_light_object.rotation_euler = ((-fill_light_object.location).to_track_quat("-Z", "X").to_euler())
+
+    #back light
+    back_light = bpy.data.lights.new(name="back_light", type='POINT')
+    back_light.color = rgb
+    back_light.energy = back_energy
+    
+    back_light_object = bpy.data.objects.new(name="back_light_object", object_data=back_light)
+    bpy.context.collection.objects.link(back_light_object)
+    bpy.context.view_layer.objects.active = back_light_object
+    
+    back_light_object.location = get_sphere_coordinates(-2, 0, 0)
 
 # def get_bg_image(bg_path=cfg.bg_paths):
 #     """get list of all background images in folder 'bg_path' then choose random image."""
@@ -347,20 +418,24 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
     """configure the blender scene with specific config"""
 
     scene = bpy.data.scenes['Scene']
-    setup_light(scene, inc, azi)
+
+    
 
     obj = None
 
     files = os.listdir(os.path.join(conf_obj.model_path, conf_obj.model))
 
-    if "model.obj" in files:
+    if "model.fbx" in files:
+        obj = importFBXObject(os.path.join(
+            conf_obj.model_path, conf_obj.model, "model.fbx"), conf_obj)
+    elif "model.obj" in files:
         obj = importOBJobject(os.path.join(
             conf_obj.model_path, conf_obj.model, "model.obj"), conf_obj)
     elif "model.ply" in files:
         obj = importPLYobject(os.path.join(
             conf_obj.model_path, conf_obj.model, "model.ply"), conf_obj)
     else:
-        raise FileNotFoundError()
+        raise FileNotFoundError(f"{conf_obj.model}: model.(fbx|obj|ply) not in {files}")
 
     obj.hide_render = False
 
@@ -384,17 +459,9 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
         inclination=0,
         azimuth=0)
 
-    empty_obj = bpy.data.objects["empty"]
-
     obj.location.x = 0
     obj.location.y = 0
     obj.location.z = 0
-
-    rot_angle1 = 0
-    rot_angle2 = 0
-    rot_angle3 = 0
-    # XYZ euler rotation on the empty object
-    empty_obj.rotation_euler = (rot_angle1, rot_angle2, rot_angle3)
 
     # update blender object world_matrices!
 
@@ -557,11 +624,16 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
 def setup():
     """one time config setup for blender."""
     bpy.ops.object.select_all(action='TOGGLE')
+
+    # setup camera
     camera = setup_camera()
 
-    # delete Light
+    # delete original light
     bpy.ops.object.select_by_type(type='LIGHT')
     bpy.ops.object.delete(use_global=False)
+
+    # setup lights
+    setup_light(**config["light"])
 
     # configure rendered image's parameters
     bpy.context.scene.render.resolution_percentage = 100
@@ -574,12 +646,7 @@ def setup():
     bpy.context.scene.render.image_settings.quality = 100
 
     # constrain camera to look at blenders (0,0,0) scene origin (empty_object)
-    cam_constraint = camera.constraints.new(type='TRACK_TO')
-    cam_constraint.track_axis = 'TRACK_NEGATIVE_Z'
-    cam_constraint.up_axis = 'UP_Y'
-    cam_constraint.use_target_z = True
-    empty_obj = bpy.data.objects.new("empty", None)
-    cam_constraint.target = empty_obj
+    camera.rotation_euler = (0,0,0)
 
     # composite node
     bpy.context.scene.use_nodes = True
@@ -615,26 +682,14 @@ def setup():
     bpy.data.objects['Cube'].select_set(True)
     bpy.ops.object.delete()
 
-    #  import Model Object
-    """ NumberOfObjects = 1
-    for i in range(NumberOfObjects):
-        if (cfg.object_paths[i][-4:] == '.obj' or
-                cfg.object_paths[i][-4:] == '.OBJ'):
-            obj = importOBJobject(filepath=cfg.object_paths[i])
-        elif (cfg.object_paths[i][-4:] == '.ply' or
-              cfg.object_paths[i][-4:] == '.PLY'):
-            obj = importPLYobject(filepath=cfg.object_paths[i],
-                                  scale=cfg.model_scale) """
-
-    #  import Distractor Objects
-    """ NumberOfObjects = len(cfg.distractor_paths)
-    for i in range(NumberOfObjects):
-        obj = importOBJobject(filepath=cfg.distractor_paths[i], distractor=True) """
-
     #  save Model real world Bounding Box for PnP algorithm
     # np.savetxt("/intermediate/model_bounding_box.txt", util.orderCorners(obj.bound_box))
 
-    # add_shader_on_world()  # used for HDR background image
+    add_shader_on_world()  # shading
+
+    bpy.ops.wm.save_as_mainfile(filepath="/data/intermediate/render/setup.blend", check_existing=False)
+
+    log.print("scene set up")
 
     return camera, None  # depth_file_output
 
@@ -706,10 +761,11 @@ def render(camera, conf_obj):
         # for block in bpy.data.images:  # delete loaded images (bg + hdri)
         #    bpy.data.images.remove(block)
 
-        for block in bpy.data.lights:  # delete lights
-            bpy.data.lights.remove(block)
+        log.print(f"\t{round(inc*180/math.pi):>4}° {round(azi*180/math.pi):>4}° [in {datetime.datetime.now()-start}]")
 
-        log.print(f"\t{inc} - {azi} - {metallic} - {roughness} [in {datetime.datetime.now()-start}]")
+        # save current scene as .blend file
+        bpy.ops.wm.save_as_mainfile(
+            filepath="/data/intermediate/render/scene.blend", check_existing=False)
 
     bpy.ops.object.select_all(action='DESELECT')
     bpy.data.objects[conf_obj.model].select_set(True)
@@ -797,9 +853,6 @@ def main():
 
     K, RT = get_camera_KRT(bpy.data.objects['Camera'])
     Kdict = save_camera_matrix(K)  # save Camera Matrix to K.txt
-    # save current scene as .blend file
-    bpy.ops.wm.save_as_mainfile(
-        filepath="/data/intermediate/render/scene.blend", check_existing=False)
 
 
     with open("/data/intermediate/render/render.lock", "w") as f:
