@@ -323,7 +323,7 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
     util.saveCOCOlabel(coco_img, coco_label, camera_K,
                        basepath, categories.categories)
     
-    print("")
+    print("\n")
 
 
 if __name__ == "__main__":

@@ -91,9 +91,9 @@ API overview for sending requests to `endpoint`:
 
 | Parameter                      | Description                                                                                                                                                     | Example                                  |
 | ------------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| `input.object`                 | list of `{model,label}` objects                                                                                                                                 | `["Robot1","Robot2"]`                    |
-| `input.distractor`             | list of `{model}` objects                                                                                                                                       | `["Distractor1", "Distractor2"]`         |
-| `input.bg`                     | optional, list of filenames of static backgrounds in `/data/input/bg/static/` OR omit to use every image in the directory (recommended)                         | `["background1.jpg", "background2.jpg"]` |
+| `input.object`                 | list of `{model,label,size,multiplicity}` objects to be recognized. `size` is an optional number specifying the relative size (default: 1). `multiplicity` is the max number of this object per image (default: 1)                                                                                                                                 | `[{model:"Suzanne", label:"Friend"}]`                    |
+| `input.distractor`             | list of `{model,size,multiplicity}` distractor objects. `size` and `multiplicity` same as for `object`                                                                                                                                       | `[{model: "EvilSuzanne"}]`         |
+| `input.bg`                     | optional, list of filenames of static backgrounds in `/data/input/bg/static/` OR omit to use every image in the directory                         | `["background1.jpg", "background2.jpg"]` |
 | `input.environment`            | optional, list of filenames of 360° HDRI backgrounds in `/data/input/bg/environment/`                                                                           | `["background3.hdr", "background4.hdr"]` |
 | `output.size_train`            | number of generated training images                                                                                                                             | `100`                                    |
 | `output.size_val`              | number of generated validation images                                                                                                                           | `10`                                     |
@@ -103,10 +103,15 @@ API overview for sending requests to `endpoint`:
 | `render.camera.lens`           | Camera lens value in chosen unit.                                                                                                                               | `75`                                     |
 | `render.camera.clip_end`       | Camera far clipping distance (https://docs.blender.org/api/current/bpy.types.Camera.html)                                                                       | `50`                                     |
 | `render.camera.clip_start`     | Camera near clipping distance (https://docs.blender.org/api/current/bpy.types.Camera.html)                                                                      | `0.01`                                   |
+| `render.light.temperature` | White light temperature in Kelvin | `1000`
+| `render.light.key_energy` | Key light total energy in Joules | `1000`
+| `render.light.key_inc` | Key light inclination in ° | `1000`
+| `render.light.key_azi` | Key light azimuth in ° | `1000`
+| `render.light.fill_energy` | Fill light total energy in Joules | `1000`
+| `render.light.back_energy` | Back light total energy in Joules | `1000`
 | `render.resolution_x`          | Pixel resolution of the output image (width)                                                                                                                    | `640`                                    |
 | `render.resolution_y`          | Pixel resolution of the output image (height)                                                                                                                   | `360`                                    |
 | `render.model_scale`           | model scale for .PLY models                                                                                                                                     | `0.0005`                                 |
-| `render.exposure`              | exposure                                                                                                                                                        | `40`                                     |
 | `render.compute_bbox`          | Choose _'tight'_ or _'fast'_. _Tight_ uses all vertices to compute a tight bbox but it is slower. _Fast_ uses only the 3D Bounding Box corners.                 | `"tight"`                                |
 | `render.use_cycles`            | Boolean. If True, cycles will be used as rendering engine. If False, Eevee will be used                                                                         | `true`                                   |
 | `render.samples`               | Render engine number of samples (sets cycles.samples)                                                                                                           | `60`                                     |
@@ -121,8 +126,15 @@ API overview for sending requests to `endpoint`:
 | `random.azi`                   | range for azimuth angles                                                                                                                                        | `[0, 1.5708]`                            |
 | `random.metallic`              | range for "metallic-ness" of model texture                                                                                                                      | `[0, 0.2]`                               |
 | `random.roughness`             | range for roughness/polishedness of model texture                                                                                                               | `[0.1, 0.6]`                             |
+| `postfx.shot` | shot noise `{amount}` | `{amount: 0.05}` |
+| `postfx.gaussian` | Gaussian (defocus) blut `{radius}` | `{radius: 2}` |
+| `postfx.motion` | linear motion blur `{angle, length}` | `{angle: 10, length:3}` |
+| `postfx.black` | black noise `{mean, stdev}` | `{mean:5, stdev:1}` |
+| `postfx.quant` | quantization (ADC) noise `{baseline, bits}` | `{baseline:0, bits:8}` |
 
-All ranges in the last section are 2-element list [low, high]. If a constant value is desired, a scalar can be written instead of a list.
+All ranges in the `random` section are 2-element list [low, high]. If a constant value is desired, a scalar can be written instead of a list.
+
+All plug-ins in the `postfx` section have default values for everything, so individual values (or even the entire plug-in dict) are optional. Every plug-in has an optional `passthrough` boolean key, which deactivates the plug-in entirely.
 
 ## output
 
