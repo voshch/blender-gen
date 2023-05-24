@@ -100,8 +100,6 @@ def saveCOCOlabel(images, annotations, Kdict, path, categories):
         json.dump(coco, write_file, indent=2)
 
 
-
-
 class Log:
     stdout = sys.stdout
     stderr = sys.stderr
@@ -115,3 +113,13 @@ class Log:
         self.stderr.write(str(message))
         self.stderr.write("\n")
         self.stderr.flush()
+
+# 0-255 gamma-corrected RGB to linear 0-1 rgb
+def srgb_to_rgb(v):
+    return v/12.92 if v <= 0.04045 else ((v+0.055)/(1.055))**2
+
+# https://stackoverflow.com/a/56678483
+# srgb to absolute luminance
+def srgb_to_luminance(rgb):
+    [r,g,b] = rgb
+    return 0.2126*srgb_to_rgb(r) + 0.7152*srgb_to_rgb(g) + 0.0722*srgb_to_rgb(b)

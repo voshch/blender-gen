@@ -3,30 +3,20 @@
     "input":{
         "object": [
             {
-                "model": "Suzanne",
-                "label": "Suzanne",
-                "size": 1,
-                "multiplicity": 3
-            },
-            {
-                "model": "Cube",
-                "label": "Cube",
-                "size": 4
+                "model": "Solar",
+                "label": "Solar",
+                "size": 0.1,
+                "multiplicity": 1
             }
         ],
-        "distractor": [
-            {
-                "model": "Cube",
-                "size": 4
-            }
-        ],
+        "distractor": [],
         "environment":[]
 
     },
 
     "output":{
         "size_train": 100,
-        "size_val": 54,
+        "size_val": 9,
         "just_merge": 0.95,
         "skew_angle:material": 1
     },
@@ -40,24 +30,30 @@
             "clip_end": 50
         },
 
-        "distance": 1,
+        "light":{
+            "temperature": 8000,
+            "key_energy": 200,
+            "key_inc": 45,
+            "key_azi": 30,
+            "fill_energy": 800,
+            "back_energy": 400
+        },
 
         "resolution_x": 1920,
         "resolution_y": 1080,
 
-        "exposure": 40,
-        "compute_bbox": "tight",
+        "compute_bbox": "fast",
         "use_fps_keypoints": false,
 
         "use_cycles": true,
-        "samples": 60,
+        "samples": 80,
         "use_cycles_denoising": false,
         "use_adaptive_sampling": false,
         "use_GPU": true
     },
     
     "random":{
-        "distractors": 1,
+        "distractors": 0,
 
         "x_pos": [-0.2, 0.2],
         "y_pos": [-0.2, 0.2],
@@ -72,14 +68,17 @@
 
     "postfx":{
         "shot":{
-            "passthrough": true
+            "passthrough": false,
+            "amount": 0.15
         },
         "gaussian":{
             "passthrough": false,
-            "radius": 20
+            "radius": 3
         },
         "motion":{
-            "passthrough": true
+            "passthrough": false,
+            "angle": 10,
+            "length": 2
         },
         "black":{
             "passthrough": true

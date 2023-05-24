@@ -336,21 +336,56 @@ def place_camera(camera, radius, inclination, azimuth):
     return camera
 
 
-def setup_light(scene, inc, azi):
-    """create a random point light source."""
-    #  place new light in cartesian coordinates
-    x, y, z = get_sphere_coordinates(
-        1,
-        inclination=0,
-        azimuth=0)
-    light_data = bpy.data.lights.new(name="my-light-data", type='POINT')
-    light_data.color = (1., 1., 1.)
-    light_data.energy = config["exposure"]
-    light_object = bpy.data.objects.new(
-        name="my-light", object_data=light_data)
-    bpy.context.collection.objects.link(light_object)
-    light_object.location = (x, y, z)
+def setup_light(temperature, key_energy, key_inc, key_azi, fill_energy, back_energy):
+    """setup 3-point light model"""
 
+    rgb = util.kelvin_to_rgb(temperature)
+    d2r = math.pi / 180 #deg2rad
+
+    key_inc *= d2r
+    key_azi *= d2r
+
+    #key light
+    key_light = bpy.data.lights.new(name="key_light", type='SPOT')
+    key_light.color = rgb
+    key_light.energy = key_energy
+
+    key_light_object = bpy.data.objects.new(name="key_light_object", object_data=key_light)
+    bpy.context.collection.objects.link(key_light_object)
+    bpy.context.view_layer.objects.active = key_light_object
+
+    key_light_object.scale = (.1, .1, 1)
+    key_light_object.location = get_sphere_coordinates(2, key_inc, key_azi)
+    key_light_object.rotation_euler = ((-key_light_object.location).to_track_quat("-Z", "X").to_euler())
+
+    #fill light
+    fill_inc = math.pi/4 + key_inc / 2
+    fill_azi = math.pi - key_azi
+
+    fill_light = bpy.data.lights.new(name="fill_light", type='AREA')
+    fill_light.shape = "DISK"
+    fill_light.size = 1
+    fill_light.color = rgb
+    fill_light.energy = fill_energy
+
+    fill_light_object = bpy.data.objects.new(name="fill_light_object", object_data=fill_light)
+    bpy.context.collection.objects.link(fill_light_object)
+    bpy.context.view_layer.objects.active = fill_light_object
+
+    fill_light_object.scale = (.5, .5, 1)
+    fill_light_object.location = get_sphere_coordinates(2, fill_inc, fill_azi)
+    fill_light_object.rotation_euler = ((-fill_light_object.location).to_track_quat("-Z", "X").to_euler())
+
+    #back light
+    back_light = bpy.data.lights.new(name="back_light", type='POINT')
+    back_light.color = rgb
+    back_light.energy = back_energy
+    
+    back_light_object = bpy.data.objects.new(name="back_light_object", object_data=back_light)
+    bpy.context.collection.objects.link(back_light_object)
+    bpy.context.view_layer.objects.active = back_light_object
+    
+    back_light_object.location = get_sphere_coordinates(-2, 0, 0)
 
 # def get_bg_image(bg_path=cfg.bg_paths):
 #     """get list of all background images in folder 'bg_path' then choose random image."""
@@ -383,7 +418,8 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
     """configure the blender scene with specific config"""
 
     scene = bpy.data.scenes['Scene']
-    setup_light(scene, inc, azi)
+
+    
 
     obj = None
 
@@ -392,14 +428,14 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
     if "model.fbx" in files:
         obj = importFBXObject(os.path.join(
             conf_obj.model_path, conf_obj.model, "model.fbx"), conf_obj)
-    if "model.obj" in files:
+    elif "model.obj" in files:
         obj = importOBJobject(os.path.join(
             conf_obj.model_path, conf_obj.model, "model.obj"), conf_obj)
     elif "model.ply" in files:
         obj = importPLYobject(os.path.join(
             conf_obj.model_path, conf_obj.model, "model.ply"), conf_obj)
     else:
-        raise FileNotFoundError()
+        raise FileNotFoundError(f"{conf_obj.model}: model.(fbx|obj|ply) not in {files}")
 
     obj.hide_render = False
 
@@ -588,11 +624,16 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
 def setup():
     """one time config setup for blender."""
     bpy.ops.object.select_all(action='TOGGLE')
+
+    # setup camera
     camera = setup_camera()
 
-    # delete Light
+    # delete original light
     bpy.ops.object.select_by_type(type='LIGHT')
     bpy.ops.object.delete(use_global=False)
+
+    # setup lights
+    setup_light(**config["light"])
 
     # configure rendered image's parameters
     bpy.context.scene.render.resolution_percentage = 100
@@ -644,7 +685,11 @@ def setup():
     #  save Model real world Bounding Box for PnP algorithm
     # np.savetxt("/intermediate/model_bounding_box.txt", util.orderCorners(obj.bound_box))
 
-    # add_shader_on_world()  # used for HDR background image
+    add_shader_on_world()  # shading
+
+    bpy.ops.wm.save_as_mainfile(filepath="/data/intermediate/render/setup.blend", check_existing=False)
+
+    log.print("scene set up")
 
     return camera, None  # depth_file_output
 
@@ -715,9 +760,6 @@ def render(camera, conf_obj):
 
         # for block in bpy.data.images:  # delete loaded images (bg + hdri)
         #    bpy.data.images.remove(block)
-
-        for block in bpy.data.lights:  # delete lights
-            bpy.data.lights.remove(block)
 
         log.print(f"\t{round(inc*180/math.pi):>4}° {round(azi*180/math.pi):>4}° [in {datetime.datetime.now()-start}]")
 
