@@ -42,6 +42,12 @@ def merge(python_cmd, mode):
                             mode, *sys.argv[1:]], stdout=log.stdout, stderr=log.stderr)
     return proc.wait()
 
+def postfx(python_cmd, mode):
+    log.print(f"RUNNING POSTFX STEP:\n")
+    proc = subprocess.Popen([python_cmd, "./src/postfx.py", "--mode_internal",
+                            mode, *sys.argv[1:]], stdout=log.stdout, stderr=log.stderr)
+    return proc.wait()
+
 
 def run(taskid, target, endpoint, mode):
     python_cmd = os.path.realpath(sys.executable)
@@ -64,6 +70,12 @@ def run(taskid, target, endpoint, mode):
         if status != 0:
             raise RuntimeError(
                 f"merge step failed with {status}")
+        
+    if target in ["all", "postfx"]:
+        status = postfx(python_cmd, mode)
+        if status != 0:
+            raise RuntimeError(
+                f"postfx step failed with {status}")
 
 
 @click.command(context_settings=dict(
@@ -71,7 +83,7 @@ def run(taskid, target, endpoint, mode):
     allow_extra_args=True,
 ))
 @click.option("--mode", default="all", help="all|train|val create training or validation images")
-@click.option("--target", type=click.Choice(["all", "configure", "render", "merge"]), default="all")
+@click.option("--target", type=click.Choice(["all", "configure", "render", "merge", "postfx"]), default="all")
 @click.option("--endpoint", default=None, help="http endpoint for sending current progress")
 @click.option("--taskID", default="", help="task ID")
 @click.option("--output", type=click.Choice(["shell", "file"]), default="shell", help="output to stdout or to /data/output/log.txt")
