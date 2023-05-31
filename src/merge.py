@@ -36,7 +36,7 @@ class Categories:
 
     def get(self, name):
         if name not in self.categories:
-            self.categories[name] = self.generator.__next__()
+            self.categories[name] = next(self.generator)
 
         return self.categories[name]
 
