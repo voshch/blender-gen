@@ -64,32 +64,10 @@
         "y_pos": [-0.2, 0.2],
         "z_pos": [-0.2, 0.2],
 
-        "inc": [-1,1],
-        "azi": [-1,1],
+        "inc": [-45,45],
+        "azi": [-90,90],
 
         "metallic": 0,
         "roughness": 1
-    },
-
-    "postfx":{
-        "shot":{
-            "passthrough": false,
-            "amount": 0.15
-        },
-        "gaussian":{
-            "passthrough": false,
-            "radius": 3
-        },
-        "motion":{
-            "passthrough": false,
-            "angle": 10,
-            "length": 2
-        },
-        "black":{
-            "passthrough": true
-        },
-        "quant":{
-            "passthrough": true
-        }
     }
 }

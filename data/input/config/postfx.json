@@ -1,0 +1,14 @@
+{
+    "shot":{
+        "amount": 0.15
+    },
+    "gaussian":{
+        "radius": 3
+    },
+    "motion":{
+        "angle": 45,
+        "length": 5
+    },
+    "black":{},
+    "quant":{}
+}

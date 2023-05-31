@@ -33,6 +33,8 @@ class Node:
         self.inputs = []
         self.outputs = []
         self.value = []
+
+    def configure(self, *args):
         pass
 
     def __repr__(self) -> str:
@@ -40,7 +42,7 @@ class Node:
 
 
 class Plugin(Node):
-    configuration: dict = dict()
+    configuration: dict = {"passthrough": True}
 
     def propagate(self) -> None:
         inputs = (mat.copy() for inp in self.inputs for mat in inp.value)
@@ -51,55 +53,64 @@ class Plugin(Node):
     def processor(self, inputs: Iterable[cv.Mat]) -> Iterable[cv.Mat]:
         return inputs
 
-    def configure(self, configuration: dict) -> None:
-        self.configuration = {**self.configuration, **configuration}
+    def configure(self, configuration: dict = {}) -> None:
+        print(f"configured {self} with {configuration}")
+        self.configuration = {**self.configuration,
+                              **configuration,
+                              "passthrough": configuration == {}
+                              }
 
-    def __init__(self, configuration: dict = {}):
+    def __init__(self):
         super().__init__()
-        self.configure({"passthrough": False, **configuration})
+        self.configure()
 
 
 class LinearBlur(Plugin):
     configuration: dict = dict(
-        angle=3,
-        distance=10
+        angle=0,
+        length=0
     )
 
     def processor(self, inputs: Iterable[cv.Mat]) -> Iterable[cv.Mat]:
 
         angle = self.configuration["angle"]
-        distance = self.configuration["distance"]
+        length = self.configuration["length"]
 
         def blur(inp: cv.Mat):
             # https://stackoverflow.com/questions/40817634/opencv-how-to-add-artificial-smudge-motion-blur-effects-to-a-whole-image
 
-            kernel = np.zeros((2*distance, 2*distance, inp.shape[-1]))
+            # opencv raises error for length < 6 because ???
+            padded_length = max(6, length)
+            kernel_size = 2*padded_length + 1
+            kernel = np.zeros((kernel_size, kernel_size, inp.shape[-1]))
             kernel = cv.ellipse(kernel,
-                                (distance, distance),
-                                (distance, 0),
+                                (padded_length, padded_length),
+                                (length, 0),
                                 angle,
                                 0, 360,
                                 (1, 1, 1),
                                 thickness=-1)
-
             kernel /= kernel[:, :, 0].sum()
-            return cv.filter2D(inp, -1, kernel)
+
+            cv.filter2D(inp, -1, kernel, inp)
+            return inp
 
         return map(blur, inputs)
 
 
 class GaussianBlur(Plugin):
     configuration: dict = dict(
-        radius=5
+        radius=1
     )
 
     def processor(self, inputs: Iterable[cv.Mat]) -> Iterable[cv.Mat]:
 
         radius = self.configuration["radius"]
-        radius += 1 - radius % 2  #odd number
+        radius += 1 - radius % 2  # odd number
 
         def blur(inp: cv.Mat):
-            return cv.GaussianBlur(inp, (3*radius, 3*radius), radius)
+            cv.GaussianBlur(inp, (3*radius, 3*radius), radius, inp)
+            return inp
 
         return map(blur, inputs)
 
@@ -110,7 +121,7 @@ class GaussianBlur(Plugin):
 class ShotNoise(Plugin):
     configuration: dict = dict(
         # relative amount, could be calculated as 1/sqrt(k * brightness)
-        amount=0.01
+        amount=0
     )
 
     def processor(self, inputs: Iterable[cv.Mat]) -> Iterable[cv.Mat]:
@@ -128,7 +139,7 @@ class ShotNoise(Plugin):
 class BlackNoise(Plugin):
     configuration: dict = dict(
         # #salt/#pixels = scale/sqrt(#photons) to follow a poisson dist
-        mean=1,
+        mean=0,
         stdev=1
     )
 
@@ -149,7 +160,7 @@ class BlackNoise(Plugin):
 class QuantizationNoise(Plugin):
     configuration: dict = dict(
         baseline=0,
-        bits=4
+        bits=32
     )
 
     def processor(self, inputs: Iterable[cv.Mat]) -> Iterable[cv.Mat]:
@@ -181,8 +192,6 @@ class OutputNode(Node):
         self.value = (mat.copy() for inp in self.inputs for mat in inp.value)
 
 
-
-
 @click.command(context_settings=dict(
     ignore_unknown_options=True,
     allow_extra_args=True,
@@ -192,13 +201,13 @@ class OutputNode(Node):
 def main(mode_internal, taskid):
 
     chain = dict(
-        input = InputNode(),
-        shot = ShotNoise(),
-        gaussian = GaussianBlur(),
-        motion = LinearBlur(),
-        black = BlackNoise(),
-        quant = QuantizationNoise(),
-        output = OutputNode()
+        input=InputNode(),
+        shot=ShotNoise(),
+        gaussian=GaussianBlur(),
+        motion=LinearBlur(),
+        black=BlackNoise(),
+        quant=QuantizationNoise(),
+        output=OutputNode()
     )
 
     chain["input"].output(chain["shot"])
@@ -208,19 +217,20 @@ def main(mode_internal, taskid):
     chain["black"].output(chain["quant"])
     chain["quant"].output(chain["output"])
 
-    config : dict = dict()
-    with open("/data/intermediate/config/postfx.json") as f:
+    config: dict = dict()
+    with open("/data/input/config/postfx.json") as f:
         config = json.load(f)
 
-    for key, value in config.items():
-        chain[key].configure(value)
+    for key in chain:
+        chain[key].configure(config[key] if key in config else {})
 
     srcpath = os.path.join("/data/output/", mode_internal, "images/")
     dstpath = os.path.join(srcpath, "postfx", taskid)
 
     os.makedirs(os.path.join(dstpath), exist_ok=True)
 
-    files = [f for f in os.listdir(srcpath) if os.path.isfile(os.path.join(srcpath, f))]
+    files = [f for f in os.listdir(
+        srcpath) if os.path.isfile(os.path.join(srcpath, f))]
 
     total = len(files)
     digits = len(str(total-1))
@@ -231,9 +241,11 @@ def main(mode_internal, taskid):
     for i, filename in enumerate(files):
 
         try:
-            img = cv.imread(os.path.join(srcpath, filename), cv.IMREAD_UNCHANGED)
+            img = cv.imread(os.path.join(srcpath, filename),
+                            cv.IMREAD_UNCHANGED)
             chain["input"].feed([img])
-            cv.imwrite(os.path.join(dstpath, filename), list(chain["output"].value)[0])
+            cv.imwrite(os.path.join(dstpath, filename),
+                       list(chain["output"].value)[0])
 
         except Exception as e:
             warnings += f"Encountered exception while processing file {filename}:\n {e}\n"
@@ -245,6 +257,7 @@ def main(mode_internal, taskid):
         print(f"\n[WARNINGS]\n{warnings}\n")
 
     print("")
+
 
 if __name__ == "__main__":
     main()
