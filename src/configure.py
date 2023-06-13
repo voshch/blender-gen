@@ -59,9 +59,11 @@ def main(mode_internal):
 
     each = to_produce ** (1/max(1, dof_ang))
 
-    d2r = pi/180 #deg2rad
-    config["random"]["inc"] = (d2r * numpy.array(config["random"]["inc"])).tolist()
-    config["random"]["azi"] = (d2r * numpy.array(config["random"]["azi"])).tolist()
+    d2r = pi/180  # deg2rad
+    config["random"]["inc"] = (
+        d2r * numpy.array(config["random"]["inc"])).tolist()
+    config["random"]["azi"] = (
+        d2r * numpy.array(config["random"]["azi"])).tolist()
 
     targets = dict(
         inc=max(1, cl(each)),
@@ -75,8 +77,9 @@ def main(mode_internal):
         else:
             targets[target] = [config["random"][target]]
 
-    max_size = max(map(lambda x: x["size"], [
-                   *config["input"]["object"], * config["input"]["distractor"]]))
+    max_size = max([x["size"] if "size" in x else 0 for x in
+                    [*config["input"]["object"], * config["input"]["distractor"]]
+                    ])
 
     conf_targets = dict(
         object=list(),
@@ -85,7 +88,7 @@ def main(mode_internal):
     )
 
     for obj in config["input"]["object"]:
-        obj["size"] = (obj["size"] / max_size) ** (1/3)  # 3 dimensions
+        obj["size"] = (obj["size"] / max_size) ** (1/3) if "size" in obj else 1
         conf_targets["object"].append(dict(
             **obj,
             **targets
