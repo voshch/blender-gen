@@ -22,8 +22,7 @@
     "output":{
         "size_train": 100,
         "size_val": 9,
-        "just_merge": 0.95,
-        "skew_angle:material": 1
+        "just_merge": 0.95
     },
 
 
@@ -37,9 +36,9 @@
 
         "light":{
             "temperature": 8000,
-            "key_energy": 200,
             "key_inc": 45,
             "key_azi": 30,
+            "key_energy": 200,
             "fill_energy": 800,
             "back_energy": 400
         },
@@ -65,9 +64,6 @@
         "z_pos": [-0.2, 0.2],
 
         "inc": [-45,45],
-        "azi": [-90,90],
-
-        "metallic": 0,
-        "roughness": 1
+        "azi": [-90,90]
     }
 }

@@ -33,8 +33,6 @@ log = util.Log()
 config = None
 with open("/data/intermediate/config/render.json") as f:
     config = json.load(f)
-    config["metallic"] = []
-    config["roughness"] = []
 
 
 class Target:
@@ -51,14 +49,6 @@ class Target:
             config["azi"] = []
         config["azi"] = config["azi"] or [0]
 
-        if "metallic" not in config:
-            config["metallic"] = []
-        config["metallic"] = config["metallic"] or [0]
-
-        if "roughness" not in config:
-            config["roughness"] = []
-        config["roughness"] = config["roughness"] or [1]
-
         if "size" not in config:
             config["size"] = 1
 
@@ -68,7 +58,7 @@ class Target:
         self.config = config
 
     def configs(self):  # lazy iterate over all combinations
-        fields = ["inc", "azi", "metallic", "roughness"]
+        fields = ["inc", "azi"]
         indices = [0 for _ in fields]
         limits = [len(self.config[field]) for field in fields]
 
@@ -139,8 +129,8 @@ def importPLYobject(filepath, conf_obj):
     mat_links.new(vcol.outputs['Color'], bsdf.inputs['Base Color'])
 
     # save object material inputs
-    config["metallic"].append(bsdf.inputs['Metallic'].default_value)
-    config["roughness"].append(bsdf.inputs['Roughness'].default_value)
+    # config["metallic"].append(bsdf.inputs['Metallic'].default_value)
+    # config["roughness"].append(bsdf.inputs['Roughness'].default_value)
 
     return obj
 
@@ -173,8 +163,8 @@ def importOBJobject(filepath, conf_obj):
     # mat_links.new(texture.outputs['Color'], bsdf.inputs['Base Color'])
 
     # save object material inputs
-    config["metallic"].append(bsdf.inputs['Metallic'].default_value)
-    config["roughness"].append(bsdf.inputs['Roughness'].default_value)
+    # config["metallic"].append(bsdf.inputs['Metallic'].default_value)
+    # config["roughness"].append(bsdf.inputs['Roughness'].default_value)
 
     return obj
 
@@ -206,8 +196,8 @@ def importFBXObject(filepath, conf_obj):
     # mat_links.new(texture.outputs['Color'], bsdf.inputs['Base Color'])
 
     # save object material inputs
-    config["metallic"].append(bsdf.inputs['Metallic'].default_value)
-    config["roughness"].append(bsdf.inputs['Roughness'].default_value)
+    # config["metallic"].append(bsdf.inputs['Metallic'].default_value)
+    # config["roughness"].append(bsdf.inputs['Roughness'].default_value)
 
     return obj
 
@@ -414,12 +404,10 @@ def add_shader_on_world():
     bpy.data.worlds['World'].node_tree.links.new(
         emission_node.outputs['Emission'], world_node.inputs['Surface'])
 
-def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
+def scene_cfg(camera, conf_obj, inc, azi):
     """configure the blender scene with specific config"""
 
     scene = bpy.data.scenes['Scene']
-
-    
 
     obj = None
 
@@ -450,8 +438,8 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
 
     obj.rotation_euler = (inc, azi, 0)
 
-    mat.node_tree.nodes["Principled BSDF"].inputs['Metallic'].default_value = metallic
-    mat.node_tree.nodes["Principled BSDF"].inputs['Roughness'].default_value = roughness
+    # mat.node_tree.nodes["Principled BSDF"].inputs['Metallic'].default_value = metallic
+    # mat.node_tree.nodes["Principled BSDF"].inputs['Roughness'].default_value = roughness
 
     camera = place_camera(
         camera,
@@ -495,7 +483,7 @@ def scene_cfg(camera, conf_obj, inc, azi, metallic, roughness):
     if conf_obj.type in ["object", "distractor"]: #always true right now
 
         annotation = dict(
-            id=f'{conf_obj.model}-{inc}-{azi}-{metallic}-{roughness}.png',
+            id=f'{conf_obj.model}-{inc}-{azi}.png',
             bbox = [0,0,0,0],
             hull = [],
         )
@@ -738,13 +726,13 @@ def render(camera, conf_obj):
     annotations = []
 
     #  render loop
-    for inc, azi, metallic, roughness in conf_obj.configs():
+    for inc, azi in conf_obj.configs():
 
         start = datetime.datetime.now()
 
-        bpy.context.scene.render.filepath = f'/data/intermediate/render/renders/{conf_obj.type}/{conf_obj.model}-{inc}-{azi}-{metallic}-{roughness}.png'
+        bpy.context.scene.render.filepath = f'/data/intermediate/render/renders/{conf_obj.type}/{conf_obj.model}-{inc}-{azi}.png'
         annotation = scene_cfg(camera, conf_obj,
-                               inc, azi, metallic, roughness)
+                               inc, azi)
 
         if conf_obj.type == "object":
             annotation["label"] = conf_obj.config["label"]

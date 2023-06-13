@@ -56,11 +56,8 @@ def main(mode_internal):
 
     dof_ang = isinstance(config["random"]["inc"], list) + \
         isinstance(config["random"]["azi"], list)
-    dof_mat = isinstance(config["random"]["metallic"], list) + \
-        isinstance(config["random"]["roughness"], list)
 
-    each = (to_produce / (config["output"]["skew_angle:material"]
-            ** dof_mat)) ** (1/max(1, dof_ang + dof_mat))
+    each = to_produce ** (1/max(1, dof_ang))
 
     d2r = pi/180 #deg2rad
     config["random"]["inc"] = (d2r * numpy.array(config["random"]["inc"])).tolist()
@@ -68,9 +65,7 @@ def main(mode_internal):
 
     targets = dict(
         inc=max(1, cl(each)),
-        azi=max(1, cl(each)),
-        metallic=max(1, cl(each / config["output"]["skew_angle:material"])),
-        roughness=max(1, cl(each / config["output"]["skew_angle:material"]))
+        azi=max(1, cl(each))
     )
 
     for target in targets:
@@ -140,7 +135,7 @@ def main(mode_internal):
         for obj in config["input"]["object"]:
             for j in range(obj["multiplicity"] if "multiplicity" in obj else 1):
                 merge["object"].append(dict(
-                    name=f'{obj["model"]}-{random.choice(targets["inc"])}-{random.choice(targets["azi"])}-{random.choice(targets["metallic"])}-{random.choice(targets["roughness"])}.png',
+                    name=f'{obj["model"]}-{random.choice(targets["inc"])}-{random.choice(targets["azi"])}.png',
                     translation=[
                         draw_samples(config["random"]["x_pos"], 1)[
                             0] if dof_pos_x else config["random"]["x_pos"],
@@ -154,7 +149,7 @@ def main(mode_internal):
 
         for j in range(random.randint(*config["random"]["distractors"]) if dof_distractors else config["random"]["distractors"]):
             merge["distractor"].append(dict(
-                name=f'{random.choice(config["input"]["distractor"])["model"]}-{random.choice(targets["inc"])}-{random.choice(targets["azi"])}-{random.choice(targets["metallic"])}-{random.choice(targets["roughness"])}.png',
+                name=f'{random.choice(config["input"]["distractor"])["model"]}-{random.choice(targets["inc"])}-{random.choice(targets["azi"])}.png',
                 translation=[
                     draw_samples(config["random"]["x_pos"], 1)[
                         0] if dof_pos_x else config["random"]["x_pos"],
@@ -179,8 +174,6 @@ def main(mode_internal):
         f'Objects:    {(len(config["input"]["object"]) + len(config["input"]["distractor"]))}')
     print(f'inc:        {len(targets["inc"])}')
     print(f'azi:        {len(targets["azi"])}')
-    # print(f'metallic:   {len(targets["metallic"])}')
-    # print(f'roughness:  {len(targets["roughness"])}')
     print("")
 
 
