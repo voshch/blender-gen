@@ -225,12 +225,14 @@ def main(mode_internal, taskid):
         chain[key].configure(config[key] if key in config else {})
 
     srcpath = os.path.join("/data/output/", mode_internal, "images/")
-    dstpath = os.path.join(srcpath, "postfx", taskid)
+    dstpath = os.path.join(srcpath, "../postfx", taskid)
 
     os.makedirs(os.path.join(dstpath), exist_ok=True)
 
-    files = [f for f in os.listdir(
-        srcpath) if os.path.isfile(os.path.join(srcpath, f))]
+    files = [os.path.relpath(os.path.join(root,f), srcpath) for root, dirs, filenames in os.walk(srcpath) for f in filenames]
+
+    for dir in (os.path.relpath(os.path.join(root,d), srcpath) for root, dirs, filenames in os.walk(srcpath, topdown=False) for d in dirs):
+        os.makedirs(os.path.join(dstpath, dir), exist_ok=True)
 
     total = len(files)
     digits = len(str(total-1))
