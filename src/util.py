@@ -4,6 +4,15 @@ import json
 import os
 import sys
 
+class Mode:
+    Train = "train"
+    Val = "val"
+
+class Target:
+    Configure = "configure"
+    Render = "render"
+    Merge = "merge"
+    PostFX = "postx"
 
 def bench():
     ts = datetime.datetime.now()

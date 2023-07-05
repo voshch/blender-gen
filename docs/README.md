@@ -68,14 +68,14 @@ docker run --gpus all --volume /path/to/input/folder/:/data/input --volume /path
 
 #### Arguments
 
-| argument            | type                         | default | description                                                                                                                   |
-| ------------------- | ---------------------------- | ------- | ----------------------------------------------------------------------------------------------------------------------------- |
-| `--endpoint`        | url                          |         | HTTP endpoint for sending progress, finish, and error statuses                                                                |
-| `--taskID`          | string                       |         | unique ID to identify this container from inside                                                                              |
-| `--mode`            | `train/val/all`              | `all`   | select which dataset parts to generate (train, val, both)                                                                     |
-| `--coco-image-root` | path                         | `"./"`  | Set `path` as prefix for path entries in the `annotation_coco.json` file (produces `[path]/images/[imagename]`)               |
-| `--target`          | `all/configure/render/merge` | `all`   | Run isolated pipeline steps with this command. Running `render` & `merge` requires persistent `/data/intermediate` directory. |
-| `--output`          | `shell/file`                 | `shell` | Write output to `stdout`, `stderr` OR `/data/log/stdout.log`, `/data/log/stderr.log`                                          |
+| argument            | type                                | default | description                                                                                                     |
+| ------------------- | ----------------------------------- | ------- | --------------------------------------------------------------------------------------------------------------- |
+| `--endpoint`        | url                                 |         | HTTP endpoint for sending progress, finish, and error statuses                                                  |
+| `--taskID`          | string                              |         | unique ID to identify this container from inside                                                                |
+| `--mode`            | `train/val/all`                     | `all`   | select which dataset parts to generate (train, val, both)                                                       |
+| `--coco-image-root` | path                                | `"./"`  | Set `path` as prefix for path entries in the `annotation_coco.json` file (produces `[path]/images/[imagename]`) |
+| `--target`          | `all/configure/render/merge/postfx` | `all`   | Select pipeline steps with this command. Either `all` or a comma-separated list of individual pipeline steps.   |
+| `--output`          | `shell/file`                        | `shell` | Write output to `stdout`, `stderr` OR `/data/log/stdout.log`, `/data/log/stderr.log`                            |
 
 ##### endpoint
 

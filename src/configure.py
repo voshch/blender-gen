@@ -5,6 +5,7 @@ import random
 from math import ceil as cl, floor as fl, pi
 import click
 
+from util import Mode
 
 def draw_samples(range, samples):
     return numpy.random.uniform(*range, size=int(samples or 1)).tolist()
@@ -18,19 +19,23 @@ def draw_linspace(range, samples):
     ignore_unknown_options=True,
     allow_extra_args=True,
 ))
-@click.option("--mode_internal", default="train", help="train|val create training or validation images")
+@click.option("--mode_internal", type=click.Choice([Mode.Train, Mode.Val]), default=Mode.Train, help="train|val create training or validation images")
 def main(mode_internal):
 
     config = None
     with open("/data/input/config/config.json") as f:
         config = json.load(f)
 
-    if mode_internal == "train":
-        config["output"]["images"] = config["output"]["size_train"]
+    match mode_internal:
+        case Mode.Train:
+            config["output"]["images"] = config["output"]["size_train"]
 
-    elif mode_internal == "val":
-        config["output"]["just_merge"] = 0
-        config["output"]["images"] = config["output"]["size_val"]
+        case Mode.Val:
+            config["output"]["just_merge"] = 0
+            config["output"]["images"] = config["output"]["size_val"]
+
+        case _:
+            raise ValueError(f"unknown mode {mode_internal}")
 
     config["output"]["just_merge"] = min(
         max(config["output"]["just_merge"], 0), 1)
