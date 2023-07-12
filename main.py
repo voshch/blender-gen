@@ -112,11 +112,11 @@ def main(mode, target, endpoint, taskid, output):
     target = [Target.Configure, Target.Render, Target.Merge,
               Target.PostFX] if target == "all" else target.split(",")
     
-    mode = [Mode.Train, Mode.Val] if mode == "all" else [mode]
+    mode = [Mode.Val, Mode.Train] if mode == "all" else [mode]
 
     try:
-        for current_target in target:
-            for current_mode in mode:
+        for current_mode in mode:
+            for current_target in target:
                 run(taskid, current_target, endpoint, current_mode)
                 log.print("\n")
 
