@@ -237,22 +237,24 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
     warnings = ""
     print(f"\r{0:0{digits}} / {total}", end="", flush=True)
 
+    ids = itertools.count()
+
     for i, conf in enumerate(merges):
 
         merged, trfs_obj, trfs_dist = merge(
             conf["backgrounds"], conf["object"], conf["distractor"])
 
-        id = f"{i:0{digits}}"
+        name = f"{i:0{digits}}"
 
-        cv.imwrite(os.path.join(basepath, f"images/{id}.png"), merged)
+        cv.imwrite(os.path.join(basepath, f"images/{name}.png"), merged)
         coco_img.append({
-            "id": id,
-            "file_name": os.path.join(coco_image_root, f"images/{id}.png"),
+            "id": i,
+            "file_name": os.path.join(coco_image_root, f"images/{name}.png"),
             "height": cfg["resolution_x"],
             "width": cfg["resolution_y"],
         })
 
-        dota_file = open(os.path.join(basepath, f"dota/{id}.txt"), "w")
+        dota_file = open(os.path.join(basepath, f"dota/{name}.txt"), "w")
 
         if (endpoint != None) and (i < Parameters.preview_size - 1):
             requests.post(f"{endpoint}/datasetPreview/", json=dict(
@@ -295,10 +297,12 @@ def main(endpoint, taskid, coco_image_root, mode_internal):
                     segmentation = [[]]
                     warnings += f"object {n} in image {i} produced invalid segmentation\n"
 
+            id = next(ids)
+
             # coco
             coco_label.append({
                 "id": id,  # overwrite
-                "image_id": id,
+                "image_id": i,
                 "caption": annotation["label"],
                 "category_id": categories.get(annotation["label"]),
                 # flat
