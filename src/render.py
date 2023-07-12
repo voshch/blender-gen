@@ -19,7 +19,6 @@ import colorsys
 import shutil
 import glob
 from mathutils import Vector, Matrix
-import click
 import datetime
 
 import shapely
@@ -36,6 +35,10 @@ with open("/data/intermediate/config/render.json") as f:
 
 
 class Target:
+
+    type = ""
+    model_path = ""
+
     def __init__(self, config=None):
 
         if not config:
@@ -89,6 +92,11 @@ class Object(Target):
 class Distractor(Target):
     model_path = "/data/input/models/"
     type = "distractor"
+
+Targets =  dict(
+    object=Object,
+    distractor=Distractor
+)
 
 # def _print(*args, **kwargs):
 #     ...
@@ -487,8 +495,6 @@ def scene_cfg(camera, conf_obj, inc, azi):
             bbox = [0,0,0,0],
             hull = [],
         )
-
-        
         
         min_x, max_x, min_y, max_y = None, None, None, None
 
@@ -718,55 +724,65 @@ def render_cfg():
     bpy.context.scene.render.resolution_y = config["resolution_y"]
 
 
-def render(camera, conf_obj):
+def render(camera, conf_obj: Target, reuse_existing):
     """main loop to render images"""
 
     render_cfg()  # setup render config once
+
+    had_to_load = False # keep false if all reused
 
     annotations = []
 
     #  render loop
     for inc, azi in conf_obj.configs():
 
-        start = datetime.datetime.now()
+        filename = f'{conf_obj.model}-{inc}-{azi}.png'
+        filepath = f'/data/intermediate/render/renders/{conf_obj.type}/{filename}'
+        description = f'\t{round(inc*180/math.pi):>4}° {round(azi*180/math.pi):>4}°'
 
-        bpy.context.scene.render.filepath = f'/data/intermediate/render/renders/{conf_obj.type}/{conf_obj.model}-{inc}-{azi}.png'
-        annotation = scene_cfg(camera, conf_obj,
-                               inc, azi)
+        if reuse_existing == True and os.path.isfile(filepath) and filename in config["old"][conf_obj.type]:
+            
+            annotations.append(config["old"][conf_obj.type][filename])
 
-        if conf_obj.type == "object":
-            annotation["label"] = conf_obj.config["label"]
+            log.print(f"{description} [reused]")
 
-        annotations.append(annotation)
+        else:
+            had_to_load = True
+            start = datetime.datetime.now()
 
-        """ if (cfg.output_depth):
-            depth_file_output.file_slots[
-                0].path = bpy.context.scene.render.filepath + '_depth' """
+            bpy.context.scene.render.filepath = filepath
+            annotation = scene_cfg(camera, conf_obj, inc, azi)
 
-        bpy.ops.render.render(write_still=True,
-                              use_viewport=False)  # render current scene
+            if conf_obj.type == "object":
+                annotation["label"] = conf_obj.config["label"]
 
-        # for block in bpy.data.images:  # delete loaded images (bg + hdri)
-        #    bpy.data.images.remove(block)
+            annotations.append(annotation)
 
-        log.print(f"\t{round(inc*180/math.pi):>4}° {round(azi*180/math.pi):>4}° [in {datetime.datetime.now()-start}]")
+            """ if (cfg.output_depth):
+                depth_file_output.file_slots[
+                    0].path = bpy.context.scene.render.filepath + '_depth' """
 
-        # save current scene as .blend file
-        bpy.ops.wm.save_as_mainfile(
-            filepath="/data/intermediate/render/scene.blend", check_existing=False)
+            bpy.ops.render.render(write_still=True,
+                                use_viewport=False)  # render current scene
 
-    bpy.ops.object.select_all(action='DESELECT')
-    bpy.data.objects[conf_obj.model].select_set(True)
-    bpy.ops.object.delete()
+            # for block in bpy.data.images:  # delete loaded images (bg + hdri)
+            #    bpy.data.images.remove(block)
+
+            log.print(f"{description} [in {datetime.datetime.now()-start}]")
+
+            # save current scene as .blend file
+            bpy.ops.wm.save_as_mainfile(
+                filepath="/data/intermediate/render/scene.blend", check_existing=False)
+
+    if had_to_load:
+        bpy.ops.object.select_all(action='DESELECT')
+        bpy.data.objects[conf_obj.model].select_set(True)
+        bpy.ops.object.delete()
 
     return annotations
 
 
-@click.command(context_settings=dict(
-    ignore_unknown_options=True,
-    allow_extra_args=True,
-))
-def main():
+def main(reuse_existing):
     """
     call this script with 'blender --background --python main.py'
 
@@ -797,39 +813,33 @@ def main():
 
     #render objects
 
-    object_annotations = {}
+    config["old"] = dict()
 
-    for obj_conf in conf["targets"]["object"]:
-        log.print(f'Rendering object {obj_conf["model"]}\n')
-        obj = Object(obj_conf)
+    def target_routine(target): #parametrized paths for object/dist
 
-        annotations = render(camera, obj)  # render loop
-        for annotation in annotations:
-            object_annotations[annotation["id"]] = annotation
+        config["old"][target] = dict()
+        if os.path.isfile(f"/data/intermediate/render/renders/{target}/annotations.json"):
+            with open(f"/data/intermediate/render/renders/{target}/annotations.json") as f:
+                config["old"][target] = json.load(f)
 
-        del obj
-        log.print(f'')
+        target_annotations = {}
 
-    with open("/data/intermediate/render/renders/object/annotations.json", "w") as f:
-        json.dump(object_annotations, f)
+        for target_conf in conf["targets"][target]:
+            log.print(f'Rendering object {target_conf["model"]}\n')
+            obj = Targets[target](target_conf)
 
-    distractor_annotations = {}
+            annotations = render(camera, obj, reuse_existing)  # render loop
+            for annotation in annotations:
+                target_annotations[annotation["id"]] = annotation
 
+            del obj
+            log.print(f'')
 
-    #render distractors
+        with open(f"/data/intermediate/render/renders/{target}/annotations.json", "w") as f:
+            json.dump(target_annotations, f)
 
-    for dist_conf in conf["targets"]["distractor"]:
-        log.print(f'Rendering distractor {dist_conf["model"]}\n')
-        obj = Distractor(dist_conf)
-
-        annotations = render(camera, obj)  # render loop
-        for annotation in annotations:
-            distractor_annotations[annotation["id"]] = annotation
-        del obj
-        log.print(f'')
-
-    with open("/data/intermediate/render/renders/distractor/annotations.json", "w") as f:
-        json.dump(distractor_annotations, f)
+    for target in ["object", "distractor"]:
+        target_routine(target)
 
     # copy static backgrounds
     os.makedirs("/data/intermediate/backgrounds/", exist_ok=True)
@@ -850,7 +860,9 @@ def main():
 if __name__ == '__main__':
 
     with open("/data/intermediate/config/log.conf", "r") as f:
-        output = f.read()
+        logconf = json.load(f)
+        output = logconf["output"]
+        reuse_existing = logconf["reuse_existing"]
 
     if output == "file":
         log.stdout = open("/data/log/stdout.txt", "a")
@@ -858,7 +870,7 @@ if __name__ == '__main__':
     # won't print to terminal in any case
 
     try:
-        main()
+        main(reuse_existing)
 
     except Exception as e:
         log.err(traceback.format_exc())

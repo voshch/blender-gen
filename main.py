@@ -4,7 +4,7 @@ import sys
 import click
 import subprocess
 import grequests as requests
-import socket
+import json
 
 sys.path.append(os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "src"))
@@ -91,15 +91,16 @@ def run(taskid, target, endpoint, mode):
     allow_extra_args=True,
 ))
 @click.option("--mode", type=click.Choice(["all", Mode.Train, Mode.Val]), default="all", help="all|train|val create training or validation images")
-@click.option("--target", default="all")
+@click.option("--target", default="all", help="comma-separated list of pipeline steps")
 @click.option("--endpoint", default=None, help="http endpoint for sending current progress")
 @click.option("--taskID", default="", help="task ID")
 @click.option("--output", type=click.Choice(["shell", "file"]), default="shell", help="output to stdout or to /data/output/log.txt")
-def main(mode, target, endpoint, taskid, output):
+@click.option("--reuse-existing", type=click.BOOL, default=False, help="Reuse existing renders when available")
+def main(mode, target, endpoint, taskid, output, reuse_existing):
 
     os.makedirs("/data/intermediate/config/", exist_ok=True)
     with open("/data/intermediate/config/log.conf", "w") as f:  # for blender python script
-        f.write(output)
+        json.dump(dict(output=output, reuse_existing=reuse_existing), f)
 
     if output == "file":
         os.makedirs("/data/log/", exist_ok=True)
