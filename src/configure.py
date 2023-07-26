@@ -94,6 +94,7 @@ def main(mode_internal):
 
     for obj in config["input"]["object"]:
         obj["size"] = (obj["size"] / max_size) ** (1/3) if "size" in obj else 1
+        obj["center"] = obj["center"] if "center" in obj else [0,0,0]
         conf_targets["object"].append(dict(
             **obj,
             **targets
@@ -101,6 +102,7 @@ def main(mode_internal):
 
     for distractor in config["input"]["distractor"]:
         distractor["size"] /= max_size
+        distractor["center"] = distractor["center"] if "center" in distractor else [0,0,0]
         conf_targets["distractor"].append(dict(
             **distractor,
             **targets

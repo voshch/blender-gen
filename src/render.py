@@ -55,6 +55,7 @@ class Target:
         if "size" not in config:
             config["size"] = 1
 
+        self.center = config["center"]
         self.size = config["size"]
         self.model = config["model"]
 
@@ -98,9 +99,13 @@ Targets =  dict(
     distractor=Distractor
 )
 
-# def _print(*args, **kwargs):
-#     ...
-# print = _print
+def center(obj, center_of_mass):
+    bpy.context.view_layer.objects.active = obj
+    obj.location -= center_of_mass #matrix_world = identity since the object has just been imported
+    bpy.context.scene.cursor.location = Vector([0,0,0])
+    bpy.ops.object.origin_set(type='ORIGIN_CURSOR')
+
+    log.print(f"{obj.name} shifted by ({', '.join([str(v) for v in center_of_mass])})")
 
 def autoscale(origin_obj, cam=bpy.data.objects['Camera']):
 
@@ -150,6 +155,8 @@ def importPLYobject(filepath, conf_obj):
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.parent_set() #"merge" objects
     
+    conf_center = conf_obj.center
+    center(obj, Vector([conf_center[0], conf_center[2], conf_center[1]]))
     autoscale(obj)
     obj.scale *= conf_obj.size
 
@@ -188,6 +195,8 @@ def importOBJobject(filepath, conf_obj):
     bpy.ops.object.parent_set() #parent objects
     # bpy.ops.object.join() #join objects
     
+    conf_center = conf_obj.center
+    center(obj, Vector([conf_center[0], conf_center[2], conf_center[1]]))
     autoscale(obj)
     obj.scale *= conf_obj.size
 
@@ -206,6 +215,8 @@ def importFBXObject(filepath, conf_obj):
     bpy.context.view_layer.objects.active = obj
     bpy.ops.object.parent_set() #"merge" objects
 
+    conf_center = conf_obj.center
+    center(obj, Vector([conf_center[0], conf_center[2], conf_center[1]]))
     autoscale(obj)
     obj.scale *= conf_obj.size
 
