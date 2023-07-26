@@ -84,7 +84,7 @@ def main(mode_internal):
 
     max_size = max([x["size"] if "size" in x else 0 for x in
                     [*config["input"]["object"], * config["input"]["distractor"]]
-                    ])
+                    ]) or 1
 
     conf_targets = dict(
         object=list(),
