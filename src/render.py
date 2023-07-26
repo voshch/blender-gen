@@ -102,12 +102,40 @@ Targets =  dict(
 #     ...
 # print = _print
 
-def autoscale(obj, cam=bpy.data.objects['Camera']):
+def autoscale(origin_obj, cam=bpy.data.objects['Camera']):
+
+    place_camera(
+        cam,
+        radius=1,
+        inclination=0,
+        azimuth=0)
+
+    bpy.ops.object.select_all(action='DESELECT')
+    for o in [origin_obj, *origin_obj.children]:
+        o.select_set(True)
+
+    bpy.ops.object.duplicate() # copy for merging, new objects are automatically selected
+    obj = bpy.context.selected_objects[0]
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.join()
+
+    landscape = bpy.context.scene.render.resolution_x > bpy.context.scene.render.resolution_y
+
     corners = np.array(obj.bound_box)
-    long = np.max(np.abs(corners).max(axis=0))
-    scale = 1/np.linalg.norm(project_by_object_utils(cam, Vector(3*[long])))
-    log.print(f"{obj.name} max {long} scaled by {scale}")
-    obj.scale = (scale, scale, scale)
+    long = np.linalg.norm(np.abs(corners).max(axis=0))
+    long_vector = get_sphere_coordinates(long, np.pi/2, np.pi/2 if landscape else 0)
+    projected_long = np.array(project_by_object_utils(cam, Vector(long_vector)))
+    scale = 1/np.abs(2 * (projected_long - 0.5)).max()
+
+    log.print(f"{origin_obj.name} max {long} scaled by {scale}")
+
+    origin_obj.scale *= scale
+
+    bpy.ops.wm.save_as_mainfile(filepath="/data/intermediate/render/autoscale.blend", check_existing=False)
+
+    bpy.ops.object.delete()
+
+    return scale
 
 def importPLYobject(filepath, conf_obj):
     """import PLY object from path and scale it."""
@@ -115,12 +143,15 @@ def importPLYobject(filepath, conf_obj):
     if conf_obj.model in bpy.data.objects:
         return bpy.data.objects[conf_obj.model]
 
-    bpy.ops.import_mesh.ply(filepath=filepath)
+    bpy.ops.import_mesh.ply(filepath=filepath) #auto deselects the rest, selects all objects
     obj = bpy.context.selected_objects[0]
     obj.name = conf_obj.model
+
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.parent_set() #"merge" objects
     
     autoscale(obj)
-    obj.scale = Vector(conf_obj.size * np.array(obj.scale))
+    obj.scale *= conf_obj.size
 
     # add vertex color to PLY object
     obj.select_set(True)
@@ -149,30 +180,16 @@ def importOBJobject(filepath, conf_obj):
     if conf_obj.model in bpy.data.objects:
         return bpy.data.objects[conf_obj.model]
 
-    bpy.ops.import_scene.obj(filepath=filepath, axis_forward='Y', axis_up='Z')
-    # print("importing model with axis_forward=Y, axis_up=Z")
-
-    bpy.context.view_layer.objects.active = bpy.context.selected_objects[0]
-    bpy.ops.object.join()  # join multiple elements into one eleme
-
-    # get BSDF material node
+    bpy.ops.import_scene.obj(filepath=filepath, axis_forward='Y', axis_up='Z')  #auto deselects the rest, selects all objects
     obj = bpy.context.selected_objects[0]
     obj.name = conf_obj.model
 
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.parent_set() #parent objects
+    # bpy.ops.object.join() #join objects
+    
     autoscale(obj)
-    obj.scale = Vector(conf_obj.size * np.array(obj.scale))
-
-    mat = obj.active_material
-    mat_links = mat.node_tree.links
-    nodes = mat.node_tree.nodes
-    bsdf = nodes.get("Principled BSDF")
-
-    texture = nodes.new(type="ShaderNodeTexImage")
-    # mat_links.new(texture.outputs['Color'], bsdf.inputs['Base Color'])
-
-    # save object material inputs
-    # config["metallic"].append(bsdf.inputs['Metallic'].default_value)
-    # config["roughness"].append(bsdf.inputs['Roughness'].default_value)
+    obj.scale *= conf_obj.size
 
     return obj
 
@@ -183,29 +200,14 @@ def importFBXObject(filepath, conf_obj):
         return bpy.data.objects[conf_obj.model]
 
     bpy.ops.import_scene.fbx(filepath=filepath, axis_forward='Y', axis_up='Z')
-    # print("importing model with axis_forward=Y, axis_up=Z")
-
-    bpy.context.view_layer.objects.active = bpy.context.selected_objects[0]
-    bpy.ops.object.join()  # join multiple elements into one eleme
-
-    # get BSDF material node
     obj = bpy.context.selected_objects[0]
     obj.name = conf_obj.model
 
+    bpy.context.view_layer.objects.active = obj
+    bpy.ops.object.parent_set() #"merge" objects
+
     autoscale(obj)
-    obj.scale = Vector(conf_obj.size * np.array(obj.scale))
-
-    mat = obj.active_material
-    mat_links = mat.node_tree.links
-    nodes = mat.node_tree.nodes
-    bsdf = nodes.get("Principled BSDF")
-
-    texture = nodes.new(type="ShaderNodeTexImage")
-    # mat_links.new(texture.outputs['Color'], bsdf.inputs['Base Color'])
-
-    # save object material inputs
-    # config["metallic"].append(bsdf.inputs['Metallic'].default_value)
-    # config["roughness"].append(bsdf.inputs['Roughness'].default_value)
+    obj.scale *= conf_obj.size
 
     return obj
 
@@ -222,30 +224,21 @@ def project_by_object_utils(cam, point):
     # convert y coordinate to opencv coordinate system!
     return Vector((co_2d.x, 1 - co_2d.y))  # normalized
 
+def setup_compositing():
+    """set up all compositing and return background image node."""
 
-def setup_bg_image_nodes(rl):
-    """setup all compositor nodes to render background images"""
-    # https://henryegloff.com/how-to-render-a-background-image-in-blender-2-8/
+    scene = bpy.data.worlds['World']
+    node_tree = scene.node_tree
 
-    bpy.context.scene.render.film_transparent = True
+    scene.use_nodes = True
+    env_node = node_tree.nodes.new(type='ShaderNodeTexEnvironment')
+    emission_node = node_tree.nodes.new(type='ShaderNodeEmission')
+    node_output = node_tree.nodes.new(type='ShaderNodeOutputWorld')  
 
-    # create nodes
-    tree = bpy.context.scene.node_tree
-    links = tree.links
-    alpha_node = tree.nodes.new(type="CompositorNodeAlphaOver")
-    composite_node = tree.nodes.new(type="CompositorNodeComposite")
-    scale_node = tree.nodes.new(type="CompositorNodeScale")
-    image_node = tree.nodes.new(type="CompositorNodeImage")
+    node_tree.links.new(env_node.outputs['Color'], emission_node.inputs['Color'])
+    node_tree.links.new(emission_node.outputs['Emission'], node_output.inputs['Surface'])
 
-    scale_node.space = 'RENDER_SIZE'
-    scale_node.frame_method = 'CROP'
-
-    # link nodes
-    links.new(rl.outputs['Image'], alpha_node.inputs[2])
-    links.new(image_node.outputs['Image'], scale_node.inputs['Image'])
-    links.new(scale_node.outputs['Image'], alpha_node.inputs[1])
-    links.new(alpha_node.outputs['Image'], composite_node.inputs['Image'])
-
+    return env_node
 
 def setup_camera():
     """set camera config."""
@@ -396,22 +389,6 @@ def setup_light(temperature, key_energy, key_inc, key_azi, fill_energy, back_ene
 #     return bg_img, bg_img_path
 
 
-def add_shader_on_world():
-    """needed for Environment Map Background."""
-    bpy.data.worlds['World'].use_nodes = True
-    env_node = bpy.data.worlds['World'].node_tree.nodes.new(
-        type='ShaderNodeTexEnvironment')
-    emission_node = bpy.data.worlds['World'].node_tree.nodes.new(
-        type='ShaderNodeEmission')
-    world_node = bpy.data.worlds['World'].node_tree.nodes['World Output']
-
-    # connect env node with emission node
-    bpy.data.worlds['World'].node_tree.links.new(env_node.outputs['Color'],
-                                                 emission_node.inputs['Color'])
-    # connect emission node with world node
-    bpy.data.worlds['World'].node_tree.links.new(
-        emission_node.outputs['Emission'], world_node.inputs['Surface'])
-
 def scene_cfg(camera, conf_obj, inc, azi):
     """configure the blender scene with specific config"""
 
@@ -561,8 +538,6 @@ def scene_cfg(camera, conf_obj, inc, azi):
 
             annotation["hull"] = None
 
-
-
         x_range = max_x - min_x
         y_range = max_y - min_y
 
@@ -570,9 +545,6 @@ def scene_cfg(camera, conf_obj, inc, azi):
             min_x * config["resolution_x"], min_y * config["resolution_y"],
             x_range * config["resolution_x"], y_range * config["resolution_y"]
         ]
-            
-
-
 
         # ROTATED BBOX
 
@@ -617,7 +589,7 @@ def scene_cfg(camera, conf_obj, inc, azi):
 
 def setup():
     """one time config setup for blender."""
-    bpy.ops.object.select_all(action='TOGGLE')
+    bpy.ops.object.select_all(action='DESELECT')
 
     # setup camera
     camera = setup_camera()
@@ -641,16 +613,6 @@ def setup():
 
     # constrain camera to look at blenders (0,0,0) scene origin (empty_object)
     camera.rotation_euler = (0,0,0)
-
-    # composite node
-    bpy.context.scene.use_nodes = True
-    tree = bpy.context.scene.node_tree
-    links = tree.links
-    for n in tree.nodes:
-        tree.nodes.remove(n)
-    rl = tree.nodes.new(type="CompositorNodeRLayers")
-
-    # setup_bg_image_nodes(rl)
 
     """ # save depth output file? not tested!
     if (cfg.output_depth):
@@ -679,7 +641,8 @@ def setup():
     #  save Model real world Bounding Box for PnP algorithm
     # np.savetxt("/intermediate/model_bounding_box.txt", util.orderCorners(obj.bound_box))
 
-    add_shader_on_world()  # shading
+    bpy.context.scene.use_nodes = True
+    background_node = setup_compositing()
 
     bpy.ops.wm.save_as_mainfile(filepath="/data/intermediate/render/setup.blend", check_existing=False)
 
